@@ -1,0 +1,38 @@
+{
+  "version": 8,
+  "name": "Estilo Basico Offline",
+  "sources": {
+    "openmaptiles": {
+      "type": "vector",
+      "url": "mbtiles://{path_to_mbtiles}"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {"background-color": "#f8f4f0"}
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "water",
+      "paint": {"fill-color": "#a0cfdf"}
+    },
+    {
+      "id": "roads",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "paint": {"line-color": "#cccccc", "line-width": 1}
+    },
+    {
+      "id": "buildings",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "building",
+      "paint": {"fill-color": "#d9d9d9", "fill-outline-color": "#bfbfbf"}
+    }
+  ]
+}

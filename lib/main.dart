@@ -1,122 +1,101 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const MaterialApp(home: MapaOfflinePage()));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MapaOfflinePage extends StatefulWidget {
+  const MapaOfflinePage({super.key});
 
-  // This widget is the root of your application.
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
+  State<MapaOfflinePage> createState() => _MapaOfflinePageState();
+}
+
+class _MapaOfflinePageState extends State<MapaOfflinePage> {
+  // Variables para guardar las rutas finales en el celular
+  late String _stylePath;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _prepararArchivosOffline();
   }
-}
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  /// Esta función copia los assets al almacenamiento del dispositivo
+  Future<void> _prepararArchivosOffline() async {
+    try {
+      // 1. Obtener directorio de documentos de la app
+      final directory = await getApplicationDocumentsDirectory();
+      final mapsDir = Directory('${directory.path}/maps');
+      if (!await mapsDir.exists()) await mapsDir.create();
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+      // 2. Copiar el MBTiles (el mapa pesado)
+      final mbtilesPath = '${mapsDir.path}/lapaz.mbtiles';
+      if (!File(mbtilesPath).existsSync()) {
+        final byteData = await rootBundle.load('assets/maps/lapaz.mbtiles');
+        await File(mbtilesPath).writeAsBytes(byteData.buffer.asUint8List());
+        print("MBTiles copiado a: $mbtilesPath");
+      }
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
+      // 3. Leer y modificar el style.json dinámicamente
+      final styleString = await rootBundle.loadString('assets/maps/style.json');
+      
+      // AQUÍ OCURRE LA MAGIA: Reemplazamos el placeholder con la ruta real del mbtiles
+      // La sintaxis 'mbtiles://' le dice a MapLibre que es un archivo local
+      final finalStyle = styleString.replaceFirst(
+        '{path_to_mbtiles}', 
+        mbtilesPath
+      );
 
-  final String title;
+      // 4. Guardar el style.json final listo para usarse
+      final styleFile = File('${mapsDir.path}/style_final.json');
+      await styleFile.writeAsString(finalStyle);
 
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
+      setState(() {
+        _stylePath = styleFile.path;
+        _isLoading = false;
+      });
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+    } catch (e) {
+      print("Error preparando mapas: $e");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 20),
+            Text("Copiando mapas al dispositivo...\n(Esto solo pasa la primera vez)"),
           ],
+        )),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("La Paz Offline")),
+      body: MaplibreMap(
+        // Coordenadas de La Paz, Bolivia
+        initialCameraPosition: const CameraPosition(
+          target: LatLng(-16.5000, -68.1193), 
+          zoom: 12,
         ),
+        // Usamos el archivo de estilo que acabamos de generar
+        styleString: _stylePath, 
+        
+        onMapCreated: (MaplibreMapController controller) {
+          print("Mapa cargado exitosamente");
+        },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }

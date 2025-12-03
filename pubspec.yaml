@@ -33,7 +33,7 @@ dependencies:
   maplibre_gl: ^0.19.0
   ffi: ^2.1.0
   path_provider: ^2.1.1
-  tflite_flutter: ^0.10.4
+  tflite_flutter: ^0.11.0
   sherpa_onnx: ^1.10.25
   protobuf: ^3.1.0
   http: ^1.1.0
@@ -41,6 +41,8 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  camera: ^0.11.3
+  image: ^4.5.4
 
 dev_dependencies:
   flutter_test:
@@ -68,6 +70,7 @@ flutter:
   assets:
     - assets/maps/lapaz.mbtiles
     - assets/maps/style.json
+    - assets/models/
 
 #    - assets/valhalla/
 

@@ -94,8 +94,18 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     }
   }
 
-  void _onMapCreated(MaplibreMapController controller) {
+  void _onMapCreated(MaplibreMapController controller) async {
     mapController = controller;
+    
+    // Load icons
+    try {
+      final ByteData bytes = await rootBundle.load("assets/images/parada_bus.png");
+      final Uint8List list = bytes.buffer.asUint8List();
+      await mapController!.addImage("parada-icon", list);
+    } catch (e) {
+      print("Error loading icon: $e");
+    }
+
     if (!_isLoadingData) {
       _drawRouteOnMap();
     }
@@ -116,10 +126,10 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     for (var stop in _stops) {
       await mapController!.addSymbol(SymbolOptions(
         geometry: LatLng(stop.lat, stop.lon),
-        iconImage: "marker-15", // Make sure this icon is available in style/assets
-        iconSize: 1.0,
+        iconImage: "parada-icon", 
+        iconSize: 0.5, // Adjusted size, original might be large
         textField: stop.nombre,
-        textOffset: const Offset(0, 1.2),
+        textOffset: const Offset(0, 1.5),
         textSize: 12.0,
         textHaloColor: "#FFFFFF",
         textHaloWidth: 1.0,

@@ -75,6 +75,7 @@ flutter:
     - assets/maps/lapaz.mbtiles
     - assets/maps/style.json
     - assets/database/transporte_app.db
+    - assets/images/
 
 #    - assets/valhalla/
 

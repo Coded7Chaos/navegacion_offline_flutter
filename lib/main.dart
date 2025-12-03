@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:app_navegacion_offline/services/valhalla_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -24,6 +25,30 @@ class _MapaOfflinePageState extends State<MapaOfflinePage> {
   void initState() {
     super.initState();
     _prepararArchivosOffline();
+    _probarPuenteNativo();
+  }
+
+  void _probarPuenteNativo(){
+    print("--- INICIANDO PRUEBA DE FFI (C++) ---");
+    try {
+      // Instanciamos el servicio
+      final valhalla = ValhallaService();
+
+      // Llamamos a la función 'inicializar' del C++
+      // Le pasamos cualquier texto por ahora, es solo un mock
+      final respuestaInit = valhalla.inicializar("config/ruta/dummy.json");
+      print("RESPUESTA C++ (Init): $respuestaInit");
+
+      // Llamamos a la función 'obtenerRuta' del C++
+      final respuestaRuta = valhalla.obtenerRuta(-16.500, -68.150);
+      print("RESPUESTA C++ (Ruta): $respuestaRuta");
+
+    } catch (e) {
+      print("ERROR FATAL EN FFI: $e");
+      print("Esto suele pasar si: ");
+      print("1. No existe libvalhalla_native.so (Error de compilación CMake)");
+      print("2. La arquitectura del emulador no coincide con la librería.");
+    }
   }
 
   /// Esta función copia los assets al almacenamiento del dispositivo

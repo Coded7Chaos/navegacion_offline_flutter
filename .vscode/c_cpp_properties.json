@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "Android-ndk",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "$/Users/franco/Library/Android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/darwin-arm64/sysroot/usr/include",
+                "$/Users/franco/Library/Android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/darwin-arm64/sysroot/usr/include/arm-linux-androideabi"
+            ],
+            "defines": [
+                "__ANDROID__"
+            ],
+            "compilerPath": "$/Users/franco/Library/Android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/darwin-arm64/bin/clang++",
+            "intelliSenseMode": "clang-x64"
+        }
+    ],
+    "version": 4
+}

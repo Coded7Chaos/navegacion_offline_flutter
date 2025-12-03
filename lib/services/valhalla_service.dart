@@ -1,55 +1,21 @@
-import 'dart:ffi'; // Para FFI
-import 'dart:io'; // Para Platform
-import 'package:ffi/ffi.dart'; // Necesitas agregar: flutter pub add ffi
-
-// Definimos los tipos de C
-typedef InitFunc = Pointer<Utf8> Function(Pointer<Utf8>);
-typedef RouteFunc = Pointer<Utf8> Function(Double, Double);
-
-// Definimos los tipos de Dart
-typedef InitFuncDart = Pointer<Utf8> Function(Pointer<Utf8>);
-typedef RouteFuncDart = Pointer<Utf8> Function(double, double);
+import 'package:flutter/services.dart';
 
 class ValhallaService {
-  late DynamicLibrary _nativeLib;
-  late InitFuncDart _initValhalla;
-  late RouteFuncDart _getRoute;
+  // Canal de comunicación con Kotlin
+  static const platform = MethodChannel('com.tudeveloper.valhalla/route');
 
-  ValhallaService() {
-
-    if (Platform.isAndroid) {
-      _nativeLib = DynamicLibrary.open('libvalhalla_native.so');
-    } else if (Platform.isIOS){
-      _nativeLib = DynamicLibrary.process();
-    } else{
-      throw UnsupportedError("Plataforma no soportada para Valhalla FFI");
+  Future<String> obtenerRuta(String jsonRequest) async {
+    try {
+      // Le decimos a Kotlin: "Oye, calcula esta ruta"
+      // Nota: Necesitas pasarle la ruta a un archivo valhalla.json real en el celular
+      // Por ahora enviamos un path dummy para probar que responde
+      final String result = await platform.invokeMethod('getRoute', {
+        'configPath': '/data/user/0/com.tu.app/files/valhalla.json', 
+        'requestJson': jsonRequest
+      });
+      return result;
+    } on PlatformException catch (e) {
+      return "Error de Valhalla: '${e.message}'.";
     }
-
-    
-    _initValhalla = _nativeLib
-        .lookup<NativeFunction<InitFunc>>('init_valhalla')
-        .asFunction<InitFuncDart>();
-
-    _getRoute = _nativeLib
-        .lookup<NativeFunction<RouteFunc>>('get_route')
-        .asFunction<RouteFuncDart>();
-  }
-
-  String inicializar(String configPath) {
-    // Convertir String Dart -> String C
-    final configC = configPath.toNativeUtf8();
-    
-    final resultC = _initValhalla(configC);
-    
-    // Leer resultado y liberar memoria
-    final resultDart = resultC.toDartString();
-    malloc.free(configC);
-    
-    return resultDart;
-  }
-
-  String obtenerRuta(double lat, double lon) {
-    final resultC = _getRoute(lat, lon);
-    return resultC.toDartString();
   }
 }

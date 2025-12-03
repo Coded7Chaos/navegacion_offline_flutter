@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    id("kotlin-kapt")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -8,7 +9,7 @@ plugins {
 android {
     namespace = "com.example.app_navegacion_offline"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "28.1.13356709"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -17,6 +18,11 @@ android {
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_11.toString()
+    }
+
+    dependencies {
+        implementation("androidx.room:room-runtime:2.6.1")
+        kapt("androidx.room:room-compiler:2.6.1")
     }
 
     defaultConfig {
@@ -28,18 +34,6 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        externalNativeBuild {
-            cmake {
-                cppFlags ("-std=c++17")
-            }
-        }
-    }
-
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "4.2.0"
-        }
     }
 
     buildTypes {

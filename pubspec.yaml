@@ -42,6 +42,9 @@ dependencies:
   protobuf: ^6.0.0
   http: ^1.1.0
   permission_handler: ^12.0.1
+  sqflite: ^2.3.3
+  path: ^1.9.0
+  geolocator: ^12.0.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -72,6 +75,7 @@ flutter:
   assets:
     - assets/maps/lapaz.mbtiles
     - assets/maps/style.json
+    - assets/maps/transporte_app.db
 
 #    - assets/valhalla/
 

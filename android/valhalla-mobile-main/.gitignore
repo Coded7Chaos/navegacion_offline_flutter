@@ -1,0 +1,40 @@
+*.iml
+/.idea
+/android/.gradle
+/android/local.properties
+/android/.idea
+/android/build/
+/android/.kotlin
+.DS_Store
+/build
+/protoc
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+.vscode
+.claude
+.zed
+
+# Swift PM
+Packages
+.build/
+xcuserdata
+DerivedData/
+*.xcodeproj
+
+# Artifacts
+valhalla-wrapper.xcframework
+valhalla-wrapper.xcframework.zip
+libvalhalla-wrapper.so
+
+# Openapi temp
+.openapi-temp
+
+# Gradle other
+/.gradle
+/wrapper/.gradle
+
+# VCPKG
+/vcpkg

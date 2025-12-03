@@ -24,3 +24,6 @@ plugins {
 }
 
 include(":app")
+
+include(":valhalla-mobile-main")
+project(":valhalla-mobile-main").projectDir = file("valhalla-mobile-main")

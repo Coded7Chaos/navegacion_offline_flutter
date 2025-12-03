@@ -8,6 +8,9 @@ import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../providers/map_provider.dart';
 import '../providers/data_provider.dart';
+import '../models/ruta.dart';
+import 'route_results_screen.dart';
+import 'route_detail_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -237,11 +240,55 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Buscando ruta (Demo)")),
+                        onPressed: () async {
+                          // Show Loading
+                          showDialog(
+                            context: context, 
+                            barrierDismissible: false,
+                            builder: (_) => const Center(child: CircularProgressIndicator())
                           );
-                          // Here logic to call Valhalla or similar
+
+                          try {
+                            final results = await dataProvider.findRoutes(
+                              mapProvider.originPoint!.latitude,
+                              mapProvider.originPoint!.longitude,
+                              mapProvider.destinationPoint!.latitude,
+                              mapProvider.destinationPoint!.longitude,
+                            );
+
+                            Navigator.pop(context); // Hide loading
+
+                            if (results.isEmpty) {
+                               ScaffoldMessenger.of(context).showSnackBar(
+                                 const SnackBar(content: Text("No se encontraron rutas cercanas directas."))
+                               );
+                            } else {
+                              // Navigate to Results
+                              Navigator.push(context, MaterialPageRoute(
+                                builder: (_) => RouteResultsScreen(
+                                  results: results,
+                                  onResultSelected: (selectedRoute) {
+                                    // Create a temporary Ruta object to reuse RouteDetailScreen
+                                    final tempRuta = Ruta(
+                                      idRutaPuma: selectedRoute.routeId,
+                                      nombre: selectedRoute.routeName,
+                                      sentido: "Ida/Vuelta", // You might want to fetch this too
+                                      estado: true
+                                    );
+                                    Navigator.push(context, MaterialPageRoute(
+                                      builder: (_) => RouteDetailScreen(ruta: tempRuta)
+                                    ));
+                                  },
+                                )
+                              ));
+                            }
+                          } catch (e) {
+                             Navigator.pop(context); // Hide loading
+                             print("Error finding routes: $e");
+                             ScaffoldMessenger.of(context).showSnackBar(
+                                 SnackBar(content: Text("Error buscando rutas: $e"))
+                               );
+                          }
                         },
                         child: const Text("Buscar ruta"),
                       ),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'theme/app_theme.dart';
-import 'screens/main_screen.dart';
+import 'presentation/main_screen.dart';
 import 'repositories/data_repository.dart';
 import 'blocs/user/user_bloc.dart';
 import 'blocs/user/user_event.dart';

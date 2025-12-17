@@ -32,4 +32,12 @@ class MapUserLocationRequested extends MapEvent {}
 
 class MapRouteRequested extends MapEvent {}
 
+class MapRouteSelected extends MapEvent {
+  final int routeId;
+  MapRouteSelected(this.routeId);
+
+  @override
+  List<Object?> get props => [routeId];
+}
+
 class MapClearResults extends MapEvent {}

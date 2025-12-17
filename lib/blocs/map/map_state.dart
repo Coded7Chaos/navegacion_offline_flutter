@@ -12,6 +12,8 @@ class MapState extends Equatable {
   final String searchQuery;
   final List<Ubicacion> searchResults;
   final List<RouteSearchResult> routeResults;
+  final int? selectedRouteId;
+  final int routeSelectionVersion;
   final String? error;
 
   const MapState({
@@ -23,6 +25,8 @@ class MapState extends Equatable {
     this.searchQuery = '',
     this.searchResults = const [],
     this.routeResults = const [],
+    this.selectedRouteId,
+    this.routeSelectionVersion = 0,
     this.error,
   });
 
@@ -35,6 +39,8 @@ class MapState extends Equatable {
     String? searchQuery,
     List<Ubicacion>? searchResults,
     List<RouteSearchResult>? routeResults,
+    int? selectedRouteId,
+    int? routeSelectionVersion,
     String? error,
   }) {
     return MapState(
@@ -46,6 +52,9 @@ class MapState extends Equatable {
       searchQuery: searchQuery ?? this.searchQuery,
       searchResults: searchResults ?? this.searchResults,
       routeResults: routeResults ?? this.routeResults,
+      selectedRouteId: selectedRouteId ?? this.selectedRouteId,
+      routeSelectionVersion:
+          routeSelectionVersion ?? this.routeSelectionVersion,
       error: error,
     );
   }
@@ -60,6 +69,8 @@ class MapState extends Equatable {
         searchQuery,
         searchResults,
         routeResults,
+        selectedRouteId,
+        routeSelectionVersion,
         error,
       ];
 }

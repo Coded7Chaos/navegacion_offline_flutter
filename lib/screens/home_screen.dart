@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../blocs/map/map_bloc.dart';
+import '../blocs/map/map_event.dart';
+import '../blocs/navigation/navigation_cubit.dart';
 import '../blocs/home/home_bloc.dart';
 import '../blocs/home/home_state.dart';
 
@@ -198,33 +201,44 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           elevation: 6,
-                          child: Stack(
-                            children: [
-                              Positioned.fill(
-                                child: Image.asset(
-                                  'assets/images/parada_bus.png',
-                                  fit: BoxFit.cover,
-                                  colorBlendMode: BlendMode.multiply,
-                                  color: Colors.black.withOpacity(0.25),
+                          child: InkWell(
+                            onTap: () {
+                              final routeId = ruta.idRutaPuma ?? index;
+                              context
+                                  .read<MapBloc>()
+                                  .add(MapRouteSelected(routeId));
+                              context
+                                  .read<NavigationCubit>()
+                                  .selectTab(1);
+                            },
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: Image.asset(
+                                    'assets/images/parada_bus.png',
+                                    fit: BoxFit.cover,
+                                    colorBlendMode: BlendMode.multiply,
+                                    color: Colors.black.withOpacity(0.25),
+                                  ),
                                 ),
-                              ),
-                              Container(
-                                color: color,
-                                child: Center(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: Text(
-                                      ruta.nombre,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
+                                Container(
+                                  color: color,
+                                  child: Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12.0),
+                                      child: Text(
+                                        ruta.nombre,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       },

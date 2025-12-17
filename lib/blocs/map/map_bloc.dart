@@ -17,6 +17,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     on<MapToggleSelectionMode>(_onToggleSelectionMode);
     on<MapUserLocationRequested>(_onUserLocationRequested);
     on<MapRouteRequested>(_onRouteRequested);
+    on<MapRouteSelected>(_onRouteSelected);
     on<MapClearResults>(_onClearResults);
   }
 
@@ -100,6 +101,15 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       emit(state.copyWith(
           loading: false, error: 'Error buscando rutas: ${e.toString()}'));
     }
+  }
+
+  void _onRouteSelected(MapRouteSelected event, Emitter<MapState> emit) {
+    emit(state.copyWith(
+      selectedRouteId: event.routeId,
+      routeSelectionVersion: state.routeSelectionVersion + 1,
+      destination: state.destination,
+      error: state.error,
+    ));
   }
 
   void _onClearResults(MapClearResults event, Emitter<MapState> emit) {

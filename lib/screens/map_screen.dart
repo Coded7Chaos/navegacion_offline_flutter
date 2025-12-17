@@ -30,6 +30,7 @@ class _MapScreenState extends State<MapScreen> {
   Symbol? _destinationSymbol;
   Line? _activeLine;
   final List<Symbol> _stopSymbols = [];
+  int? _pendingRouteId;
 
   @override
   void initState() {
@@ -63,8 +64,14 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  void _onMapCreated(MaplibreMapController controller) {
+  Future<void> _onMapCreated(MaplibreMapController controller) async {
     _controller = controller;
+    if (_pendingRouteId != null) {
+      final repository = RepositoryProvider.of<DataRepository>(context);
+      final routeId = _pendingRouteId!;
+      _pendingRouteId = null;
+      await _drawRouteLine(repository, routeId);
+    }
   }
 
   Future<void> _addDestinationMarker(LatLng point) async {
@@ -184,10 +191,19 @@ class _MapScreenState extends State<MapScreen> {
               listenWhen: (prev, curr) =>
                   prev.destination != curr.destination ||
                   prev.routeResults != curr.routeResults ||
+                  prev.routeSelectionVersion != curr.routeSelectionVersion ||
                   prev.error != curr.error,
               listener: (context, state) async {
                 if (state.destination != null) {
                   await _addDestinationMarker(state.destination!);
+                }
+                if (state.routeSelectionVersion > 0 &&
+                    state.selectedRouteId != null) {
+                  if (_controller == null) {
+                    _pendingRouteId = state.selectedRouteId;
+                  } else {
+                    await _drawRouteLine(repository, state.selectedRouteId!);
+                  }
                 }
                 if (state.error != null) {
                   ScaffoldMessenger.of(context).showSnackBar(

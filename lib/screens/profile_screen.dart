@@ -4,6 +4,7 @@ import '../blocs/user/user_bloc.dart';
 import '../blocs/user/user_event.dart';
 import '../blocs/user/user_state.dart';
 import '../models/local_user.dart';
+import 'favorites_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -107,10 +108,8 @@ class ProfileScreen extends StatelessWidget {
                   _ProfileTile(
                     icon: Icons.favorite_border_rounded,
                     label: 'Favoritos guardados',
-                    onTap: () => _openList(
-                      context,
-                      'Favoritos',
-                      state.favoritos.map((id) => 'Ruta $id').toList(),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const FavoritesScreen()),
                     ),
                   ),
                   const SizedBox(height: 12),

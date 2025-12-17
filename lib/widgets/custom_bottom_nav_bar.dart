@@ -13,7 +13,6 @@ class CustomBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final primaryColor = theme.primaryColor;
     
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),

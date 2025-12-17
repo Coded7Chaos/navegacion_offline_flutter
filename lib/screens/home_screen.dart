@@ -44,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 32),
                         Text(
                           'Rutikal',
                           style: theme.textTheme.headlineMedium?.copyWith(

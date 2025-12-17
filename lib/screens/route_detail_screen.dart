@@ -25,14 +25,19 @@ class RouteDetailScreen extends StatefulWidget {
 }
 
 class _RouteDetailScreenState extends State<RouteDetailScreen> {
-  MaplibreMapController? mapController;
+  MapLibreMapController? mapController;
   String? _stylePath;
   bool _isLoadingMap = true;
+  bool _isStyleLoaded = false;
   
   // Route Data
   List<LatLng> _polylineCoordinates = [];
   List<Parada> _stops = [];
   bool _isLoadingData = true;
+  bool _iconsLoaded = false;
+  bool _routeDrawn = false;
+
+  static const String _stopIconName = "parada-icon";
 
   @override
   void initState() {
@@ -93,25 +98,43 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     }
   }
 
-  void _onMapCreated(MaplibreMapController controller) async {
+  void _onMapCreated(MapLibreMapController controller) async {
     mapController = controller;
-    
-    // Load icons
+  }
+
+  Future<void> _onStyleLoaded() async {
+    if (!mounted || mapController == null) return;
+    _isStyleLoaded = true;
+
     try {
-      final ByteData bytes = await rootBundle.load("assets/images/parada_bus.png");
+      await mapController?.setSymbolIconAllowOverlap(true);
+      await mapController?.setSymbolIconIgnorePlacement(true);
+      await mapController?.setSymbolTextAllowOverlap(true);
+      await mapController?.setSymbolTextIgnorePlacement(true);
+    } catch (e) {
+      print("Error configuring symbol collision: $e");
+    }
+
+    try {
+      final ByteData bytes =
+          await rootBundle.load("assets/images/parada_bus.png");
       final Uint8List list = bytes.buffer.asUint8List();
-      await mapController!.addImage("parada-icon", list);
+      await mapController!.addImage(_stopIconName, list);
+      _iconsLoaded = true;
     } catch (e) {
       print("Error loading icon: $e");
     }
 
-    if (!_isLoadingData) {
-      _drawRouteOnMap();
-    }
+    _drawRouteOnMap();
   }
 
   void _drawRouteOnMap() async {
-    if (mapController == null || _polylineCoordinates.isEmpty) return;
+    if (mapController == null ||
+        !_isStyleLoaded ||
+        _polylineCoordinates.isEmpty ||
+        !_iconsLoaded ||
+        _routeDrawn) return;
+    _routeDrawn = true;
 
     // 1. Draw Polyline
     await mapController!.addLine(LineOptions(
@@ -125,7 +148,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     for (var stop in _stops) {
       await mapController!.addSymbol(SymbolOptions(
         geometry: LatLng(stop.lat, stop.lon),
-        iconImage: "parada-icon", 
+        iconImage: _stopIconName,
         iconSize: 0.5, // Adjusted size, original might be large
         textField: stop.nombre,
         textOffset: const Offset(0, 1.5),
@@ -267,13 +290,14 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Stack(
               children: [
-                MaplibreMap(
+                MapLibreMap(
                   initialCameraPosition: const CameraPosition(
                     target: LatLng(-16.5000, -68.1193), // Default La Paz
                     zoom: 12,
                   ),
                   styleString: _stylePath ?? "",
                   onMapCreated: _onMapCreated,
+                  onStyleLoadedCallback: _onStyleLoaded,
                 ),
                 if (_isLoadingData)
                   const Positioned(

@@ -24,13 +24,18 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  MaplibreMapController? _controller;
+  MapLibreMapController? _controller;
   String? _stylePath;
   bool _styleLoading = true;
+  bool _isStyleLoaded = false;
+  bool _stopIconLoaded = false;
   Symbol? _destinationSymbol;
   Line? _activeLine;
   final List<Symbol> _stopSymbols = [];
   int? _pendingRouteId;
+  int? _activeRouteId;
+
+  static const String _stopIconName = "parada_bus";
 
   @override
   void initState() {
@@ -64,18 +69,56 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Future<void> _onMapCreated(MaplibreMapController controller) async {
+  Future<void> _onMapCreated(MapLibreMapController controller) async {
     _controller = controller;
-    if (_pendingRouteId != null) {
-      final repository = RepositoryProvider.of<DataRepository>(context);
-      final routeId = _pendingRouteId!;
-      _pendingRouteId = null;
+    debugPrint("MAP: Map created. Waiting for style to load...");
+  }
+
+  Future<void> _onStyleLoaded() async {
+    if (!mounted) return;
+    _isStyleLoaded = true;
+    await _ensureStopIconLoaded();
+    await _configureSymbolCollision();
+
+    final repository = RepositoryProvider.of<DataRepository>(context);
+    final routeId = _pendingRouteId ?? _activeRouteId;
+    _pendingRouteId = null;
+
+    if (routeId != null) {
+      debugPrint("MAP: Style loaded. Drawing route $routeId");
       await _drawRouteLine(repository, routeId);
+      await _drawStops(repository, routeId);
+    }
+  }
+
+  Future<void> _ensureStopIconLoaded() async {
+    if (_controller == null || !_isStyleLoaded || _stopIconLoaded) return;
+    try {
+      final bytes = await rootBundle.load("assets/images/parada_bus.png");
+      final list = bytes.buffer.asUint8List();
+      await _controller!.addImage(_stopIconName, list);
+      _stopIconLoaded = true;
+      debugPrint(
+          "MAP: Icon '$_stopIconName' loaded. Size: ${list.length} bytes");
+    } catch (e) {
+      debugPrint("MAP: Error loading stop icon: $e");
+    }
+  }
+
+  Future<void> _configureSymbolCollision() async {
+    if (_controller == null || !_isStyleLoaded) return;
+    try {
+      await _controller!.setSymbolIconAllowOverlap(true);
+      await _controller!.setSymbolIconIgnorePlacement(true);
+      await _controller!.setSymbolTextAllowOverlap(true);
+      await _controller!.setSymbolTextIgnorePlacement(true);
+    } catch (e) {
+      debugPrint("MAP: Error configuring symbol collision: $e");
     }
   }
 
   Future<void> _addDestinationMarker(LatLng point) async {
-    if (_controller == null) return;
+    if (_controller == null || !_isStyleLoaded) return;
     if (_destinationSymbol != null) {
       await _controller!.removeSymbol(_destinationSymbol!);
     }
@@ -88,7 +131,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _drawRouteLine(DataRepository repository, int routeId) async {
-    if (_controller == null) return;
+    if (_controller == null || !_isStyleLoaded) return;
     if (_activeLine != null) {
       await _controller!.removeLine(_activeLine!);
       _activeLine = null;
@@ -147,17 +190,23 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _drawStops(DataRepository repository, int routeId) async {
-    if (_controller == null) return;
+    if (_controller == null || !_isStyleLoaded) return;
+    await _ensureStopIconLoaded();
+
+    debugPrint("MAP: Drawing stops for route $routeId");
     await _clearStopSymbols();
     final stops = await repository.getStopsForRoute(routeId);
+    debugPrint("MAP: Found ${stops.length} stops.");
     for (final stop in stops) {
+      debugPrint("MAP: Adding symbol for stop ${stop.nombre} at ${stop.lat}, ${stop.lon}");
       final symbol = await _controller!.addSymbol(SymbolOptions(
         geometry: LatLng(stop.lat, stop.lon),
-        iconImage: "marker-15",
-        iconSize: 1.2,
+        iconImage: _stopIconName,
+        iconSize: 0.25, // Reverted to original size
         textField: stop.nombre,
         textOffset: const Offset(0, 1.4),
         textSize: 12,
+        iconAnchor: "bottom",
       ));
       _stopSymbols.add(symbol);
     }
@@ -184,10 +233,13 @@ class _MapScreenState extends State<MapScreen> {
                 }
                 if (state.routeSelectionVersion > 0 &&
                     state.selectedRouteId != null) {
-                  if (_controller == null) {
+                  _activeRouteId = state.selectedRouteId;
+                  if (_controller == null || !_isStyleLoaded) {
                     _pendingRouteId = state.selectedRouteId;
-                  } else {
+                  }
+                  else {
                     await _drawRouteLine(repository, state.selectedRouteId!);
+                    await _drawStops(repository, state.selectedRouteId!);
                   }
                 }
                 if (state.error != null) {
@@ -235,13 +287,14 @@ class _MapScreenState extends State<MapScreen> {
               builder: (context, state) {
                 return Stack(
                   children: [
-                    MaplibreMap(
+                    MapLibreMap(
                       initialCameraPosition: CameraPosition(
                           target: state.cameraPosition, zoom: 13),
                       onMapCreated: _onMapCreated,
+                      onStyleLoadedCallback: _onStyleLoaded,
                       styleString: _stylePath ?? "",
                       myLocationEnabled: true,
-                      myLocationTrackingMode: MyLocationTrackingMode.Tracking,
+                      myLocationTrackingMode: MyLocationTrackingMode.tracking,
                       onMapClick: (p, latLng) {
                         if (state.selectionMode) {
                           context

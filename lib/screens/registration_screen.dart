@@ -40,8 +40,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F3),
+      // Background handled by theme
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -59,62 +60,58 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         height: 72, fit: BoxFit.contain),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFD97846)),
+                    borderRadius: BorderRadius.circular(24),
+                    color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
                       ),
                     ],
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFFFFF), Color(0xFFFFF1E3)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(20.0),
+                    padding: const EdgeInsets.all(24.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFD97846), Color(0xFFF4A942)],
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: LinearGradient(
+                              colors: [theme.primaryColor, theme.colorScheme.secondary],
                             ),
                           ),
-                          child: const Column(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
+                            children: const [
                               Text(
                                 'Bienvenido a Rutikal',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 20,
+                                  fontSize: 22,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              SizedBox(height: 6),
+                              SizedBox(height: 8),
                               Text(
                                 'Sistema de Transporte Pumakatari - La Paz',
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 14,
                                 ),
+                                textAlign: TextAlign.center,
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 24),
                         Form(
                           key: _formKey,
                           child: Column(
@@ -122,44 +119,44 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               _InputField(
                                 controller: _nombres,
                                 label: 'Nombres',
-                                hint: 'Ingrese sus nombres',
+                                hint: 'Sus nombres',
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 16),
                               _InputField(
                                 controller: _primerApellido,
                                 label: 'Primer Apellido',
-                                hint: 'Ingrese su primer apellido',
+                                hint: 'Su primer apellido',
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 16),
                               _InputField(
                                 controller: _segundoApellido,
                                 label: 'Segundo Apellido',
-                                hint: 'Ingrese su segundo apellido',
+                                hint: 'Su segundo apellido',
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 16),
                               _InputField(
                                 controller: _telefono,
                                 label: 'Teléfono',
-                                hint: 'Ingrese su teléfono',
+                                hint: 'Su número celular',
                                 keyboardType: TextInputType.phone,
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 24),
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
                                   onPressed: _onSubmit,
                                   style: ElevatedButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(
-                                        vertical: 14),
+                                        vertical: 16),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
-                                    backgroundColor:
-                                        const Color(0xFFD97846),
+                                    backgroundColor: theme.primaryColor,
                                     foregroundColor: Colors.white,
+                                    elevation: 4,
                                   ),
                                   child: const Text(
-                                    'Registrar',
+                                    'Registrar Cuenta',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
@@ -198,15 +195,18 @@ class _InputField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(
-              color: Color(0xFF5C3A29),
-              fontWeight: FontWeight.w600,
-            )),
-        const SizedBox(height: 6),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          child: Text(label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.primaryColor,
+              )),
+        ),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
@@ -214,20 +214,7 @@ class _InputField extends StatelessWidget {
               (v == null || v.trim().isEmpty) ? 'Campo obligatorio' : null,
           decoration: InputDecoration(
             hintText: hint,
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: Color(0xFFD97846), width: 1.2),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: Color(0xFFD97846), width: 1.0),
-            ),
+            // Uses theme decoration by default now, but we can override if needed
           ),
         ),
       ],

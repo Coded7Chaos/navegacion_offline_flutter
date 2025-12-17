@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/navigation/navigation_cubit.dart';
 import '../blocs/user/user_bloc.dart';
 import '../blocs/user/user_state.dart';
+import '../widgets/custom_bottom_nav_bar.dart';
 import 'registration_screen.dart';
 import 'home_screen.dart';
 import 'map_screen.dart';
@@ -41,32 +42,14 @@ class _MainScreenState extends State<MainScreen> {
         return BlocBuilder<NavigationCubit, int>(
           builder: (context, index) {
             return Scaffold(
+              extendBody: true,
               body: IndexedStack(
                 index: index,
                 children: _screens,
               ),
-              bottomNavigationBar: NavigationBar(
-                selectedIndex: index,
-                onDestinationSelected:
-                    context.read<NavigationCubit>().selectTab,
-                destinations: const [
-                  NavigationDestination(
-                    icon: Icon(Icons.home_filled),
-                    label: 'Inicio',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.map),
-                    label: 'Mapa',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.notifications_active),
-                    label: 'Avisos',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.person),
-                    label: 'Cuenta',
-                  ),
-                ],
+              bottomNavigationBar: CustomBottomNavBar(
+                currentIndex: index,
+                onTap: context.read<NavigationCubit>().selectTab,
               ),
             );
           },

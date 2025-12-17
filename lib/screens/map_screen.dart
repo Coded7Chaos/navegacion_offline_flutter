@@ -166,8 +166,10 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final repository = RepositoryProvider.of<DataRepository>(context);
+    final theme = Theme.of(context);
+    
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F3),
+      // Background color handled by theme
       body: _styleLoading
           ? const Center(child: CircularProgressIndicator())
           : BlocConsumer<MapBloc, MapState>(
@@ -190,7 +192,11 @@ class _MapScreenState extends State<MapScreen> {
                 }
                 if (state.error != null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(state.error!)),
+                    SnackBar(
+                      content: Text(state.error!),
+                      backgroundColor: theme.colorScheme.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 }
                 if (state.routeResults.isNotEmpty) {
@@ -245,28 +251,30 @@ class _MapScreenState extends State<MapScreen> {
                       },
                     ),
                     if (state.selectionMode)
-                      const Center(
+                      Center(
                         child: Icon(Icons.add_location_alt,
-                            color: Colors.black54, size: 32),
+                            color: theme.primaryColor, size: 40),
                       ),
                     Positioned(
-                      top: 40,
-                      left: 16,
-                      right: 16,
+                      top: 60, // Safe area
+                      left: 20,
+                      right: 20,
                       child: Column(
                         children: [
                           Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
+                            decoration: theme.inputDecorationTheme.fillColor != null 
+                            ? BoxDecoration(
+                              color: theme.inputDecorationTheme.fillColor,
+                              borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 6),
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 5),
                                 ),
                               ],
-                            ),
+                            ) 
+                            : null,
                             child: Row(
                               children: [
                                 Expanded(
@@ -274,77 +282,92 @@ class _MapScreenState extends State<MapScreen> {
                                     onChanged: (v) => context
                                         .read<MapBloc>()
                                         .add(MapSearchChanged(v)),
-                                    decoration: const InputDecoration(
-                                      hintText: 'Buscar ubicación o parada',
+                                    decoration: InputDecoration(
+                                      hintText: 'Buscar ubicación o parada...',
                                       border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 14),
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 20, vertical: 16),
+                                      prefixIcon: Icon(Icons.search, color: theme.primaryColor),
                                     ),
                                   ),
+                                ),
+                                Container(
+                                  height: 30,
+                                  width: 1,
+                                  color: Colors.grey.withOpacity(0.3),
                                 ),
                                 IconButton(
                                   icon: Icon(
                                     Icons.my_location,
                                     color: state.selectionMode
-                                        ? const Color(0xFFD97846)
-                                        : const Color(0xFF5C3A29),
+                                        ? theme.primaryColor
+                                        : Colors.grey,
                                   ),
                                   onPressed: () => context
                                       .read<MapBloc>()
                                       .add(MapToggleSelectionMode()),
                                 ),
+                                const SizedBox(width: 8),
                               ],
                             ),
                           ),
                           if (state.searchResults.isNotEmpty)
                             Container(
-                              margin: const EdgeInsets.only(top: 6),
+                              margin: const EdgeInsets.only(top: 12),
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.08),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 6),
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 5),
                                   ),
                                 ],
                               ),
-                              constraints: const BoxConstraints(maxHeight: 200),
-                              child: ListView.builder(
-                                shrinkWrap: true,
-                                itemCount: state.searchResults.length,
-                                itemBuilder: (context, index) {
-                                  final Ubicacion res =
-                                      state.searchResults[index];
-                                  return ListTile(
-                                    title: Text(res.nombre),
-                                    onTap: () {
-                                      final point =
-                                          LatLng(res.latitud, res.longitud);
-                                      context
-                                          .read<MapBloc>()
-                                          .add(MapDestinationSelected(point));
-                                      _addDestinationMarker(point);
-                                      _controller?.animateCamera(
-                                          CameraUpdate.newLatLngZoom(
-                                              point, 15));
-                                    },
-                                  );
-                                },
+                              constraints: const BoxConstraints(maxHeight: 250),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: ListView.separated(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: state.searchResults.length,
+                                  separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.withOpacity(0.1)),
+                                  itemBuilder: (context, index) {
+                                    final Ubicacion res =
+                                        state.searchResults[index];
+                                    return ListTile(
+                                      leading: Icon(Icons.location_on_outlined, color: theme.primaryColor),
+                                      title: Text(res.nombre),
+                                      onTap: () {
+                                        final point =
+                                            LatLng(res.latitud, res.longitud);
+                                        context
+                                            .read<MapBloc>()
+                                            .add(MapDestinationSelected(point));
+                                        _addDestinationMarker(point);
+                                        _controller?.animateCamera(
+                                            CameraUpdate.newLatLngZoom(
+                                                point, 15));
+                                      },
+                                    );
+                                  },
+                                ),
                               ),
                             ),
                         ],
                       ),
                     ),
                     Positioned(
-                      bottom: 120,
-                      left: 16,
-                      right: 16,
+                      bottom: 110, // Adjusted for floating nav
+                      left: 20,
+                      right: 20,
                       child: Row(
                         children: [
                           _CircleButton(
-                            icon: Icons.navigation,
+                            icon: Icons.near_me_rounded,
                             onPressed: () async {
                               context
                                   .read<MapBloc>()
@@ -356,7 +379,7 @@ class _MapScreenState extends State<MapScreen> {
                               }
                             },
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
                               onPressed: (state.destination != null &&
@@ -366,42 +389,42 @@ class _MapScreenState extends State<MapScreen> {
                                       .add(MapRouteRequested())
                                   : null,
                               style: ElevatedButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
-                                backgroundColor: const Color(0xFFD97846),
+                                backgroundColor: theme.primaryColor,
                                 foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                elevation: 4,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(25),
                                 ),
                               ),
                               child: const Text(
-                                'Buscar ruta más corta',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                'Buscar Ruta',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
                           _CircleButton(
-                            icon: Icons.list,
+                            icon: Icons.format_list_bulleted_rounded,
                             onPressed: () => _openRoutesSheet(repository),
                           ),
                         ],
                       ),
                     ),
+                    if (state.destination != null)
                     Positioned(
-                      bottom: 70,
-                      right: 16,
-                      child: state.destination != null
-                          ? FloatingActionButton.small(
+                      bottom: 180,
+                      right: 20,
+                      child: FloatingActionButton.small(
                               heroTag: 'clearDest',
                               backgroundColor: Colors.white,
+                              elevation: 4,
                               onPressed: () => context
                                   .read<MapBloc>()
                                   .add(MapDestinationCleared()),
-                              child: const Icon(Icons.close,
-                                  color: Color(0xFF5C3A29)),
-                            )
-                          : const SizedBox.shrink(),
+                              child: Icon(Icons.close,
+                                  color: theme.colorScheme.secondary),
+                            ),
                     ),
                   ],
                 );
@@ -414,82 +437,101 @@ class _MapScreenState extends State<MapScreen> {
     final rutas = await repository.loadRutas();
     if (!mounted) return;
     final rootContext = context;
+    final theme = Theme.of(context);
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Rutas disponibles',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Color(0xFF5C3A29),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const SizedBox(height: 8),
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: rutas.length,
-                    itemBuilder: (context, index) {
-                      final ruta = rutas[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        child: ListTile(
-                          title: Text(ruta.nombre),
-                          subtitle: Text(ruta.sentido),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () async {
-                            Navigator.pop(context);
-                            if (!mounted) return;
-                            Navigator.of(rootContext).push(
-                              MaterialPageRoute(
-                                builder: (_) => RouteDetailScreen(
-                                  ruta: ruta,
-                                  repository: repository,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF5C3A29),
-                    minimumSize: const Size.fromHeight(44),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: const BorderSide(color: Color(0xFFD97846)),
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text('Cerrar'),
-                ),
-              ],
+                  const SizedBox(height: 20),
+                  Text(
+                    'Rutas Disponibles',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: rutas.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final ruta = rutas[index];
+                        return Card(
+                          elevation: 0,
+                          color: theme.colorScheme.background,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey.withOpacity(0.1)),
+                          ),
+                          margin: EdgeInsets.zero,
+                          child: ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: theme.primaryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(Icons.directions_bus, color: theme.primaryColor),
+                            ),
+                            title: Text(ruta.nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text(ruta.sentido),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () async {
+                              Navigator.pop(context);
+                              if (!mounted) return;
+                              Navigator.of(rootContext).push(
+                                MaterialPageRoute(
+                                  builder: (_) => RouteDetailScreen(
+                                    ruta: ruta,
+                                    repository: repository,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[100],
+                      foregroundColor: Colors.black87,
+                      minimumSize: const Size.fromHeight(50),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text('Cerrar'),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -506,17 +548,19 @@ class _CircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Material(
       color: Colors.white,
       shape: const CircleBorder(),
-      elevation: 6,
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.3),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onPressed,
         child: SizedBox(
-          width: 48,
-          height: 48,
-          child: Icon(icon, color: const Color(0xFF5C3A29)),
+          width: 50,
+          height: 50,
+          child: Icon(icon, color: theme.primaryColor),
         ),
       ),
     );

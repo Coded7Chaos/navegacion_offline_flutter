@@ -9,34 +9,38 @@ class NotificationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F3),
+      // Background handled by theme
       body: SafeArea(
+        bottom: false, // For floating nav
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           child: BlocBuilder<AlertsBloc, AlertsState>(
             builder: (context, state) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 8),
-                  const Text(
-                    'Avisos y Notificaciones',
-                    style: TextStyle(
-                      fontSize: 22,
+                  Text(
+                    'Avisos',
+                    style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF5C3A29),
+                      color: theme.primaryColor,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  const Text(
+                  const SizedBox(height: 4),
+                  Text(
                     'Información importante sobre las rutas',
-                    style: TextStyle(color: Colors.grey),
+                    style: theme.textTheme.bodyMedium,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   Expanded(
-                    child: ListView.builder(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 100),
                       itemCount: state.alertas.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final alerta = state.alertas[index];
                         return _NotificationCard(
@@ -56,85 +60,123 @@ class NotificationsScreen extends StatelessWidget {
   }
 
   void _openAlertDetails(BuildContext context, Alerta alerta) {
+    final theme = Theme.of(context);
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        alerta.rutaNombre,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFD97846),
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    'Publicado el ${alerta.fecha}',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 12),
-                  _DetailSection(
-                    title: 'Descripción',
-                    child: Text(alerta.descripcionCompleta),
-                  ),
-                  if (alerta.paradasAfectadas.isNotEmpty)
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            alerta.rutaNombre,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: theme.primaryColor,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'Publicado el ${alerta.fecha}',
+                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 20),
                     _DetailSection(
-                      title: 'Paradas afectadas',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: alerta.paradasAfectadas
-                            .map((e) => Text('• $e'))
-                            .toList(),
-                      ),
+                      title: 'Descripción',
+                      child: Text(alerta.descripcionCompleta),
                     ),
-                  if (alerta.paradasAlternativas.isNotEmpty)
+                    if (alerta.paradasAfectadas.isNotEmpty)
+                      _DetailSection(
+                        title: 'Paradas afectadas',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: alerta.paradasAfectadas
+                              .map((e) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(Icons.warning_amber_rounded, size: 16, color: theme.colorScheme.error),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: Text(e)),
+                                  ],
+                                ),
+                              ))
+                              .toList(),
+                        ),
+                      ),
+                    if (alerta.paradasAlternativas.isNotEmpty)
+                      _DetailSection(
+                        title: 'Paradas alternativas',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: alerta.paradasAlternativas
+                              .map((e) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(Icons.check_circle_outline_rounded, size: 16, color: Colors.green),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: Text(e)),
+                                  ],
+                                ),
+                              ))
+                              .toList(),
+                        ),
+                      ),
                     _DetailSection(
-                      title: 'Paradas alternativas',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: alerta.paradasAlternativas
-                            .map((e) => Text('• $e'))
-                            .toList(),
-                      ),
+                      title: 'Motivo',
+                      child: Text(alerta.motivo),
                     ),
-                  _DetailSection(
-                    title: 'Motivo',
-                    child: Text(alerta.motivo),
-                  ),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD97846),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.primaryColor,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
+                      child: const Text('Entendido'),
                     ),
-                    child: const Text('Cerrar'),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -152,41 +194,73 @@ class _NotificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [Color(0xFFD97846), Color(0xFFF4A942)],
+    final theme = Theme.of(context);
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(Icons.notifications_outlined, color: theme.primaryColor),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        alerta.rutaNombre,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        alerta.descripcionCorta,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        alerta.fecha,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[400],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: Colors.grey[300]),
+              ],
             ),
           ),
-          child: const Icon(Icons.priority_high, color: Colors.white),
         ),
-        title: Text(alerta.rutaNombre,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              alerta.descripcionCorta,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              alerta.fecha,
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ],
-        ),
-        trailing: const Icon(Icons.chevron_right),
       ),
     );
   }
@@ -200,23 +274,25 @@ class _DetailSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF1E3),
-        borderRadius: BorderRadius.circular(12),
+        color: theme.scaffoldBackgroundColor, // Light cream from theme
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
-                fontWeight: FontWeight.w600, color: Color(0xFF5C3A29)),
+            style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold, color: theme.primaryColor),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           child,
         ],
       ),

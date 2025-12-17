@@ -25,9 +25,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F3),
+      // Background color handled by theme
       body: SafeArea(
+        bottom: false, // For floating nav bar
         child: BlocBuilder<HomeBloc, HomeState>(
           builder: (context, state) {
             if (state.loading) {
@@ -37,37 +40,31 @@ class _HomeScreenState extends State<HomeScreen> {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const SizedBox(height: 8),
-                        Center(
-                          child: Column(
-                            children: const [
-                              Text(
-                                'Rutikal',
-                                style: TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFD97846),
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Sistema Pumakatari - La Paz',
-                                style: TextStyle(
-                                  color: Color(0xFF5C3A29),
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
+                        const SizedBox(height: 12),
+                        Text(
+                          'Rutikal',
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            color: theme.primaryColor,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Sistema Pumakatari - La Paz',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        
+                        // ADS CAROUSEL
                         SizedBox(
-                          height: 190,
+                          height: 200,
                           child: PageView.builder(
                             controller: _pageController,
                             onPageChanged: (i) => setState(() {
@@ -76,24 +73,25 @@ class _HomeScreenState extends State<HomeScreen> {
                             itemCount: state.ads.length,
                             itemBuilder: (context, index) {
                               final ad = state.ads[index];
+                              final isActive = index == _currentPage;
                               return AnimatedContainer(
                                 duration: const Duration(milliseconds: 300),
                                 margin: EdgeInsets.only(
                                     right: 12,
-                                    top: index == _currentPage ? 0 : 10,
-                                    bottom: index == _currentPage ? 0 : 10),
+                                    top: isActive ? 0 : 12,
+                                    bottom: isActive ? 0 : 12),
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(18),
+                                  borderRadius: BorderRadius.circular(24),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 12,
+                                      color: Colors.black.withOpacity(0.15),
+                                      blurRadius: 16,
                                       offset: const Offset(0, 8),
                                     ),
                                   ],
                                 ),
                                 child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(18),
+                                  borderRadius: BorderRadius.circular(24),
                                   child: Stack(
                                     fit: StackFit.expand,
                                     children: [
@@ -104,38 +102,43 @@ class _HomeScreenState extends State<HomeScreen> {
                                             Container(color: Colors.grey[300]),
                                       ),
                                       Container(
-                                        decoration: const BoxDecoration(
+                                        decoration: BoxDecoration(
                                           gradient: LinearGradient(
                                             begin: Alignment.bottomCenter,
                                             end: Alignment.topCenter,
                                             colors: [
-                                              Colors.black54,
-                                              Colors.transparent
+                                              Colors.black.withOpacity(0.8),
+                                              Colors.transparent,
                                             ],
+                                            stops: const [0.0, 0.6],
                                           ),
                                         ),
                                       ),
                                       Positioned(
-                                        left: 16,
-                                        right: 16,
-                                        bottom: 16,
+                                        left: 20,
+                                        right: 20,
+                                        bottom: 20,
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Text(
                                               ad.titulo,
                                               style: const TextStyle(
                                                 color: Colors.white,
-                                                fontSize: 18,
+                                                fontSize: 20,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                            const SizedBox(height: 4),
+                                            const SizedBox(height: 6),
                                             Text(
                                               ad.descripcion,
                                               style: const TextStyle(
-                                                  color: Colors.white70),
+                                                  color: Colors.white70,
+                                                  fontSize: 14),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ],
                                         ),
@@ -149,95 +152,139 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 16),
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: List.generate(
                             state.ads.length,
                             (index) => AnimatedContainer(
                               duration: const Duration(milliseconds: 300),
                               margin: const EdgeInsets.symmetric(horizontal: 4),
-                              width: _currentPage == index ? 22 : 10,
-                              height: 10,
+                              width: _currentPage == index ? 24 : 8,
+                              height: 8,
                               decoration: BoxDecoration(
                                 color: _currentPage == index
-                                    ? const Color(0xFFD97846)
+                                    ? theme.primaryColor
                                     : Colors.grey[300],
                                 borderRadius: BorderRadius.circular(30),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 32),
+                        
+                        // SECTION HEADER
                         Row(
-                          children: const [
-                            Icon(Icons.directions_bus,
-                                color: Color(0xFFD97846)),
-                            SizedBox(width: 8),
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: theme.primaryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(Icons.directions_bus_rounded,
+                                  color: theme.primaryColor),
+                            ),
+                            const SizedBox(width: 16),
                             Text(
                               'Rutas Disponibles',
-                              style: TextStyle(
-                                color: Color(0xFF5C3A29),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 18,
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                       ],
                     ),
                   ),
                 ),
                 SliverPadding(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                   sliver: SliverGrid(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
                         final ruta = state.rutas[index];
-                        final color =
-                            _colorForIndex(index).withOpacity(0.82);
-                        return Card(
-                          clipBehavior: Clip.antiAlias,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                        final color = _colorForIndex(index);
+                        
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                               BoxShadow(
+                                 color: Colors.black.withOpacity(0.05),
+                                 blurRadius: 10,
+                                 offset: const Offset(0, 4),
+                               ),
+                            ],
                           ),
-                          elevation: 6,
-                          child: InkWell(
-                            onTap: () {
-                              final routeId = ruta.idRutaPuma ?? index;
-                              context
-                                  .read<MapBloc>()
-                                  .add(MapRouteSelected(routeId));
-                              context
-                                  .read<NavigationCubit>()
-                                  .selectTab(1);
-                            },
-                            child: Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: Image.asset(
-                                    'assets/images/parada_bus.png',
-                                    fit: BoxFit.cover,
-                                    colorBlendMode: BlendMode.multiply,
-                                    color: Colors.black.withOpacity(0.25),
-                                  ),
-                                ),
-                                Container(
-                                  color: color,
-                                  child: Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(12.0),
-                                      child: Text(
-                                        ruta.nombre,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              onTap: () {
+                                final routeId = ruta.idRutaPuma ?? index;
+                                context
+                                    .read<MapBloc>()
+                                    .add(MapRouteSelected(routeId));
+                                context
+                                    .read<NavigationCubit>()
+                                    .selectTab(1);
+                              },
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                                          child: Image.asset(
+                                            'assets/images/parada_bus.png',
+                                            fit: BoxFit.cover,
+                                          ),
                                         ),
+                                        Container(
+                                           decoration: BoxDecoration(
+                                             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                                             color: color.withOpacity(0.85),
+                                           ),
+                                           child: Center(
+                                             child: Icon(
+                                               Icons.directions_bus_filled_rounded,
+                                               color: Colors.white.withOpacity(0.9),
+                                               size: 32,
+                                             ),
+                                           ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            ruta.nombre,
+                                            textAlign: TextAlign.center,
+                                            style: theme.textTheme.titleMedium?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         );
@@ -247,14 +294,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 1.1,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: 0.9,
                     ),
                   ),
                 ),
                 const SliverToBoxAdapter(
-                  child: SizedBox(height: 32),
+                  child: SizedBox(height: 100), // Space for floating nav bar
                 ),
               ],
             );
@@ -273,6 +320,6 @@ class _HomeScreenState extends State<HomeScreen> {
       Color(0xFFDD6B20),
       Color(0xFF805AD5),
     ];
-    return palette[index % palette.length].withOpacity(0.75 + (index % 2) * 0.1);
+    return palette[index % palette.length];
   }
 }

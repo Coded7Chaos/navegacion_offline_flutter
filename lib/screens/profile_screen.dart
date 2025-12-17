@@ -10,59 +10,102 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F3),
+      // Background handled by theme
       body: SafeArea(
+        bottom: false, // For floating nav
         child: BlocBuilder<UserBloc, UserState>(
           builder: (context, state) {
             if (state is! UserLoaded) {
               return const Center(child: CircularProgressIndicator());
             }
             final user = state.user;
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 100), // Bottom padding for nav
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 8),
-                  Center(
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 110,
-                          height: 110,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [Color(0xFFD97846), Color(0xFFF4A942)],
+                  const SizedBox(height: 20),
+                  Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: theme.primaryColor.withOpacity(0.2),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
                             ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  theme.primaryColor,
+                                  theme.colorScheme.secondary,
+                                ],
+                              ),
+                            ),
+                            child: const Icon(Icons.person,
+                                size: 64, color: Colors.white),
                           ),
-                          child: const Icon(Icons.person,
-                              size: 60, color: Colors.white),
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          user.nombreCompleto,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                              color: Color(0xFF5C3A29)),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                            ),
+                          ],
                         ),
-                        Text(
-                          user.telefono,
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
+                        child: Icon(Icons.edit, size: 16, color: theme.primaryColor),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 20),
+                  Text(
+                    user.nombreCompleto,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.textTheme.titleLarge?.color),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user.telefono,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  
+                  // Menu Items
                   _ProfileTile(
-                    icon: Icons.edit,
+                    icon: Icons.person_outline_rounded,
                     label: 'Editar información',
                     onTap: () => _openEdit(context, user),
                   ),
+                  const SizedBox(height: 12),
                   _ProfileTile(
-                    icon: Icons.favorite,
+                    icon: Icons.favorite_border_rounded,
                     label: 'Favoritos guardados',
                     onTap: () => _openList(
                       context,
@@ -70,8 +113,9 @@ class ProfileScreen extends StatelessWidget {
                       state.favoritos.map((id) => 'Ruta $id').toList(),
                     ),
                   ),
+                  const SizedBox(height: 12),
                   _ProfileTile(
-                    icon: Icons.history,
+                    icon: Icons.history_rounded,
                     label: 'Historial de rutas',
                     onTap: () => _openList(context, 'Historial', state.historial),
                   ),
@@ -85,6 +129,7 @@ class ProfileScreen extends StatelessWidget {
   }
 
   void _openEdit(BuildContext context, LocalUser user) {
+    final theme = Theme.of(context);
     final nombres = TextEditingController(text: user.nombres);
     final pA = TextEditingController(text: user.primerApellido);
     final sA = TextEditingController(text: user.segundoApellido);
@@ -93,55 +138,70 @@ class ProfileScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 16,
-            bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Editar información',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF5C3A29)),
-              ),
-              const SizedBox(height: 12),
-              _EditField(controller: nombres, label: 'Nombres'),
-              _EditField(controller: pA, label: 'Primer apellido'),
-              _EditField(controller: sA, label: 'Segundo apellido'),
-              _EditField(controller: tel, label: 'Teléfono'),
-              const SizedBox(height: 14),
-              ElevatedButton(
-                onPressed: () {
-                  context.read<UserBloc>().add(UserUpdated(LocalUser(
-                        nombres: nombres.text.trim(),
-                        primerApellido: pA.text.trim(),
-                        segundoApellido: sA.text.trim(),
-                        telefono: tel.text.trim(),
-                      )));
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD97846),
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(44),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: 20 + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: const Text('Guardar'),
-              ),
-            ],
+                Text(
+                  'Editar Perfil',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.primaryColor,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _EditField(controller: nombres, label: 'Nombres'),
+                const SizedBox(height: 12),
+                _EditField(controller: pA, label: 'Primer Apellido'),
+                const SizedBox(height: 12),
+                _EditField(controller: sA, label: 'Segundo Apellido'),
+                const SizedBox(height: 12),
+                _EditField(controller: tel, label: 'Teléfono'),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    context.read<UserBloc>().add(UserUpdated(LocalUser(
+                          nombres: nombres.text.trim(),
+                          primerApellido: pA.text.trim(),
+                          segundoApellido: sA.text.trim(),
+                          telefono: tel.text.trim(),
+                        )));
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text('Guardar Cambios'),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -149,46 +209,76 @@ class ProfileScreen extends StatelessWidget {
   }
 
   void _openList(BuildContext context, String title, List<String> items) {
+    final theme = Theme.of(context);
+    
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF5C3A29)),
-                ),
-                const SizedBox(height: 12),
-                if (items.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(12.0),
-                    child: Text('No hay elementos registrados'),
-                  )
-                else
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: items.length,
-                      itemBuilder: (context, index) {
-                        return ListTile(
-                          leading: const Icon(Icons.route),
-                          title: Text(items[index]),
-                        );
-                      },
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-              ],
+                  Text(
+                    title,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.primaryColor),
+                  ),
+                  const SizedBox(height: 20),
+                  if (items.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        children: [
+                          Icon(Icons.inbox_rounded, size: 48, color: Colors.grey[300]),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No hay elementos registrados',
+                            style: TextStyle(color: Colors.grey[500]),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: items.length,
+                        separatorBuilder: (context, index) => const Divider(),
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: theme.primaryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(Icons.history, color: theme.primaryColor),
+                            ),
+                            title: Text(items[index]),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         );
@@ -210,26 +300,50 @@ class _ProfileTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          width: 42,
-          height: 42,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [Color(0xFFD97846), Color(0xFFF4A942)],
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: theme.primaryColor),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: Colors.grey[300]),
+              ],
             ),
           ),
-          child: Icon(icon, color: Colors.white),
         ),
-        title: Text(label,
-            style: const TextStyle(
-                fontWeight: FontWeight.w600, color: Color(0xFF5C3A29))),
-        trailing: const Icon(Icons.chevron_right),
       ),
     );
   }
@@ -243,23 +357,11 @@ class _EditField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          filled: true,
-          fillColor: const Color(0xFFFFF1E3),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0xFFD97846)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0xFFD97846)),
-          ),
-        ),
+    // Uses the Theme's inputDecorationTheme
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
       ),
     );
   }

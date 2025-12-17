@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'theme/app_theme.dart';
 import 'screens/main_screen.dart';
 import 'repositories/data_repository.dart';
 import 'blocs/user/user_bloc.dart';
@@ -43,10 +44,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Navegación Offline',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
       home: const MainScreen(),
     );
   }

@@ -206,6 +206,7 @@ class DataRepository {
       res.routeName = await _getRouteName(res.routeId);
     }
 
+    finalResults.sort((a, b) => a.totalWalkingDistance.compareTo(b.totalWalkingDistance));
     return finalResults;
   }
 }

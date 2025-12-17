@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../models/local_user.dart';
+import '../../models/history_entry.dart';
 
 abstract class UserState extends Equatable {
   const UserState();
@@ -17,7 +18,7 @@ class UserLoading extends UserState {}
 class UserLoaded extends UserState {
   final LocalUser user;
   final List<int> favoritos;
-  final List<String> historial;
+  final List<HistoryEntry> historial;
 
   const UserLoaded({
     required this.user,
@@ -28,7 +29,7 @@ class UserLoaded extends UserState {
   UserLoaded copyWith({
     LocalUser? user,
     List<int>? favoritos,
-    List<String>? historial,
+    List<HistoryEntry>? historial,
   }) {
     return UserLoaded(
       user: user ?? this.user,

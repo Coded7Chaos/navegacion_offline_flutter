@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -36,7 +37,15 @@ class _RouteSegmentScreenState extends State<RouteSegmentScreen> {
   bool _instructionsExpanded = false;
 
   static const String _stopIconName = "parada_bus";
+  static const String _boardIconName = "parada_subida";
+  static const String _alightIconName = "parada_bajada";
   static const String _destinationIconName = "destino_icon";
+  static const String _originIconName = "origen_icon";
+  bool _boardIconLoaded = false;
+  bool _alightIconLoaded = false;
+  bool _destinationIconLoaded = false;
+  bool _stopIconLoaded = false;
+  bool _originIconLoaded = false;
 
   @override
   void initState() {
@@ -88,14 +97,52 @@ class _RouteSegmentScreenState extends State<RouteSegmentScreen> {
       await _controller!.setSymbolTextIgnorePlacement(true);
     } catch (_) {}
 
+    final theme = Theme.of(context);
     try {
-      final stopBytes = await rootBundle.load("assets/images/parada_bus.png");
-      await _controller!.addImage(
-          _stopIconName, stopBytes.buffer.asUint8List());
+      final stopBytes = await _materialIconPngBytes(
+        Icons.directions_bus_rounded,
+        iconColor: theme.primaryColor,
+        size: 84,
+        backgroundColor: Colors.white,
+      );
+      await _controller!.addImage(_stopIconName, stopBytes);
+      _stopIconLoaded = true;
 
-      final destBytes = await rootBundle.load("assets/images/alfiler.png");
-      await _controller!.addImage(
-          _destinationIconName, destBytes.buffer.asUint8List());
+      final boardBytes = await _materialIconPngBytes(
+        Icons.person_pin_circle_rounded,
+        iconColor: const Color(0xFF1B5E20),
+        size: 88,
+        backgroundColor: Colors.white,
+      );
+      await _controller!.addImage(_boardIconName, boardBytes);
+      _boardIconLoaded = true;
+
+      final alightBytes = await _materialIconPngBytes(
+        Icons.place_rounded,
+        iconColor: const Color(0xFFF57C00),
+        size: 88,
+        backgroundColor: Colors.white,
+      );
+      await _controller!.addImage(_alightIconName, alightBytes);
+      _alightIconLoaded = true;
+
+      final destBytes = await _materialIconPngBytes(
+        Icons.flag_rounded,
+        iconColor: const Color(0xFFE53935),
+        size: 88,
+        backgroundColor: Colors.white,
+      );
+      await _controller!.addImage(_destinationIconName, destBytes);
+      _destinationIconLoaded = true;
+
+      final originBytes = await _materialIconPngBytes(
+        Icons.my_location_rounded,
+        iconColor: const Color(0xFF1E88E5),
+        size: 78,
+        backgroundColor: Colors.white,
+      );
+      await _controller!.addImage(_originIconName, originBytes);
+      _originIconLoaded = true;
 
       _iconsLoaded = true;
     } catch (_) {
@@ -132,8 +179,12 @@ class _RouteSegmentScreenState extends State<RouteSegmentScreen> {
 
     await _controller!.addSymbol(SymbolOptions(
       geometry: LatLng(widget.result.startStop.lat, widget.result.startStop.lon),
-      iconImage: _stopIconName,
-      iconSize: 0.28,
+      iconImage: _boardIconLoaded
+          ? _boardIconName
+          : (_stopIconLoaded ? _stopIconName : "marker-15"),
+      iconSize: _boardIconLoaded
+          ? 0.18
+          : (_stopIconLoaded ? 0.28 : 1.6),
       iconAnchor: "bottom",
       textField: "Sube: ${widget.result.startStop.nombre}",
       textOffset: const Offset(0, 1.4),
@@ -142,8 +193,12 @@ class _RouteSegmentScreenState extends State<RouteSegmentScreen> {
 
     await _controller!.addSymbol(SymbolOptions(
       geometry: LatLng(widget.result.endStop.lat, widget.result.endStop.lon),
-      iconImage: _stopIconName,
-      iconSize: 0.28,
+      iconImage: _alightIconLoaded
+          ? _alightIconName
+          : (_stopIconLoaded ? _stopIconName : "marker-15"),
+      iconSize: _alightIconLoaded
+          ? 0.18
+          : (_stopIconLoaded ? 0.28 : 1.6),
       iconAnchor: "bottom",
       textField: "Baja: ${widget.result.endStop.nombre}",
       textOffset: const Offset(0, 1.4),
@@ -152,11 +207,21 @@ class _RouteSegmentScreenState extends State<RouteSegmentScreen> {
 
     await _controller!.addSymbol(SymbolOptions(
       geometry: widget.destination,
-      iconImage: _destinationIconName,
-      iconSize: 0.18,
+      iconImage: _destinationIconLoaded ? _destinationIconName : "marker-15",
+      iconSize: _destinationIconLoaded ? 0.18 : 1.6,
       iconAnchor: "bottom",
       textField: "Destino",
       textOffset: const Offset(0, 1.4),
+      textSize: 12,
+    ));
+
+    await _controller!.addSymbol(SymbolOptions(
+      geometry: widget.origin,
+      iconImage: _originIconLoaded ? _originIconName : "marker-15",
+      iconSize: _originIconLoaded ? 0.16 : 1.6,
+      iconAnchor: "center",
+      textField: "Origen",
+      textOffset: const Offset(0, 1.6),
       textSize: 12,
     ));
 
@@ -202,6 +267,50 @@ class _RouteSegmentScreenState extends State<RouteSegmentScreen> {
     final sinDLon = sin(dLon / 2);
     final h = sinDLat * sinDLat + cos(lat1) * cos(lat2) * sinDLon * sinDLon;
     return 2 * r * atan2(sqrt(h), sqrt(1 - h));
+  }
+
+  Future<Uint8List> _materialIconPngBytes(
+    IconData icon, {
+    required Color iconColor,
+    required double size,
+    Color? backgroundColor,
+  }) async {
+    const padding = 18.0;
+    final pixelRatio = ui.PlatformDispatcher.instance.views.first.devicePixelRatio;
+    final imageSize = ((size + padding * 2) * pixelRatio).ceil();
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(
+      recorder,
+      Rect.fromLTWH(0, 0, imageSize.toDouble(), imageSize.toDouble()),
+    );
+
+    if (backgroundColor != null) {
+      final paint = Paint()..color = backgroundColor;
+      final radius = (imageSize / 2).toDouble();
+      canvas.drawCircle(Offset(radius, radius), radius, paint);
+    }
+
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    textPainter.text = TextSpan(
+      text: String.fromCharCode(icon.codePoint),
+      style: TextStyle(
+        fontSize: size * pixelRatio,
+        fontFamily: icon.fontFamily,
+        package: icon.fontPackage,
+        color: iconColor,
+      ),
+    );
+    textPainter.layout();
+
+    final dx = (imageSize - textPainter.width) / 2;
+    final dy = (imageSize - textPainter.height) / 2;
+    textPainter.paint(canvas, Offset(dx, dy));
+
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(imageSize, imageSize);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
   }
 
   String _formatMeters(double meters) {

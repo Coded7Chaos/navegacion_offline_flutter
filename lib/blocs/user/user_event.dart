@@ -39,3 +39,11 @@ class HistoryAdded extends UserEvent {
   @override
   List<Object?> get props => [descripcion];
 }
+
+class HistoryRouteSearchSaved extends UserEvent {
+  final String payloadJson;
+  HistoryRouteSearchSaved(this.payloadJson);
+
+  @override
+  List<Object?> get props => [payloadJson];
+}

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -15,6 +16,8 @@ import '../models/ubicacion.dart';
 import 'route_detail_screen.dart';
 import 'route_segment_screen.dart';
 import 'route_results_screen.dart';
+import 'dart:convert';
+import '../models/history_entry.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -122,15 +125,63 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _ensureDestinationIconLoaded() async {
     if (_controller == null || !_isStyleLoaded || _destinationIconLoaded) return;
     try {
-      final bytes = await rootBundle.load("assets/images/alfiler.png");
-      final list = bytes.buffer.asUint8List();
-      await _controller!.addImage(_destinationIconName, list);
+      final bytes = await _materialIconPngBytes(
+        Icons.location_on_rounded,
+        iconColor: const Color(0xFFE53935),
+        size: 96,
+        backgroundColor: Colors.white,
+      );
+      await _controller!.addImage(_destinationIconName, bytes);
       _destinationIconLoaded = true;
       debugPrint("MAP: Icon '$_destinationIconName' loaded.");
     } catch (e) {
       // If it already exists, that's fine. If it doesn't, we'll fallback later.
       debugPrint("MAP: Error loading destination icon: $e");
     }
+  }
+
+  Future<Uint8List> _materialIconPngBytes(
+    IconData icon, {
+    required Color iconColor,
+    required double size,
+    Color? backgroundColor,
+  }) async {
+    const padding = 18.0;
+    final pixelRatio = ui.PlatformDispatcher.instance.views.first.devicePixelRatio;
+    final imageSize = ((size + padding * 2) * pixelRatio).ceil();
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(
+      recorder,
+      Rect.fromLTWH(0, 0, imageSize.toDouble(), imageSize.toDouble()),
+    );
+
+    if (backgroundColor != null) {
+      final paint = Paint()..color = backgroundColor;
+      final radius = (imageSize / 2).toDouble();
+      canvas.drawCircle(Offset(radius, radius), radius, paint);
+    }
+
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    textPainter.text = TextSpan(
+      text: String.fromCharCode(icon.codePoint),
+      style: TextStyle(
+        fontSize: size * pixelRatio,
+        fontFamily: icon.fontFamily,
+        package: icon.fontPackage,
+        color: iconColor,
+      ),
+    );
+    textPainter.layout();
+
+    final dx = (imageSize - textPainter.width) / 2;
+    final dy = (imageSize - textPainter.height) / 2;
+    textPainter.paint(canvas, Offset(dx, dy));
+
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(imageSize, imageSize);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
   }
 
   Future<void> _configureSymbolCollision() async {
@@ -306,11 +357,37 @@ class _MapScreenState extends State<MapScreen> {
                   );
                 }
                 if (state.routeResults.isNotEmpty) {
-                  final summary =
-                      'Desde mi ubicación hacia destino (${state.destination?.latitude.toStringAsFixed(4)}, ${state.destination?.longitude.toStringAsFixed(4)})';
-                  context.read<UserBloc>().add(HistoryAdded(summary));
                   final origin = state.userLocation;
                   final destination = state.destination;
+                  if (origin != null && destination != null) {
+                    final best = state.routeResults.first;
+                    final entry = HistoryEntry(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      timestamp: DateTime.now(),
+                      originLat: origin.latitude,
+                      originLon: origin.longitude,
+                      destinationLat: destination.latitude,
+                      destinationLon: destination.longitude,
+                      routeId: best.routeId,
+                      routeName: best.routeName,
+                      boardStopName: best.startStop.nombre,
+                      boardStopLat: best.startStop.lat,
+                      boardStopLon: best.startStop.lon,
+                      boardStopId: best.startStop.idParada,
+                      boardCoordId: best.startInfo.idCoordenada,
+                      boardOrder: best.startInfo.orden,
+                      alightStopName: best.endStop.nombre,
+                      alightStopLat: best.endStop.lat,
+                      alightStopLon: best.endStop.lon,
+                      alightStopId: best.endStop.idParada,
+                      alightCoordId: best.endInfo.idCoordenada,
+                      alightOrder: best.endInfo.orden,
+                      totalWalkingDistance: best.totalWalkingDistance,
+                    );
+                    context
+                        .read<UserBloc>()
+                        .add(HistoryRouteSearchSaved(jsonEncode(entry.toJson())));
+                  }
                   Navigator.push(
                     context,
                     MaterialPageRoute(

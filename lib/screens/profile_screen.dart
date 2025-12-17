@@ -5,6 +5,7 @@ import '../blocs/user/user_event.dart';
 import '../blocs/user/user_state.dart';
 import '../models/local_user.dart';
 import 'favorites_screen.dart';
+import 'history_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -116,7 +117,9 @@ class ProfileScreen extends StatelessWidget {
                   _ProfileTile(
                     icon: Icons.history_rounded,
                     label: 'Historial de rutas',
-                    onTap: () => _openList(context, 'Historial', state.historial),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                    ),
                   ),
                 ],
               ),
@@ -207,83 +210,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  void _openList(BuildContext context, String title, List<String> items) {
-    final theme = Theme.of(context);
-    
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  Text(
-                    title,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.primaryColor),
-                  ),
-                  const SizedBox(height: 20),
-                  if (items.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        children: [
-                          Icon(Icons.inbox_rounded, size: 48, color: Colors.grey[300]),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No hay elementos registrados',
-                            style: TextStyle(color: Colors.grey[500]),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    Flexible(
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: items.length,
-                        separatorBuilder: (context, index) => const Divider(),
-                        itemBuilder: (context, index) {
-                          return ListTile(
-                            leading: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: theme.primaryColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(Icons.history, color: theme.primaryColor),
-                            ),
-                            title: Text(items[index]),
-                          );
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
 
 class _ProfileTile extends StatelessWidget {

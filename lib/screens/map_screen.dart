@@ -163,23 +163,6 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Future<void> _showAllStops(DataRepository repository) async {
-    if (_controller == null) return;
-    await _clearStopSymbols();
-    final stops = await repository.loadParadas();
-    for (final stop in stops) {
-      final symbol = await _controller!.addSymbol(SymbolOptions(
-        geometry: LatLng(stop.lat, stop.lon),
-        iconImage: "marker-15",
-        iconSize: 1.2,
-        textField: stop.nombre,
-        textOffset: const Offset(0, 1.4),
-        textSize: 12,
-      ));
-      _stopSymbols.add(symbol);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final repository = RepositoryProvider.of<DataRepository>(context);
@@ -430,6 +413,7 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _openRoutesSheet(DataRepository repository) async {
     final rutas = await repository.loadRutas();
     if (!mounted) return;
+    final rootContext = context;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -437,118 +421,78 @@ class _MapScreenState extends State<MapScreen> {
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
-        int? selectedId;
-        bool showStops = false;
-        return StatefulBuilder(builder: (context, setModalState) {
-          return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Rutas disponibles',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Color(0xFF5C3A29),
-                    ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Rutas disponibles',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Color(0xFF5C3A29),
                   ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: () async {
-                      await _showAllStops(repository);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF5C3A29),
-                      minimumSize: const Size.fromHeight(44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Color(0xFFD97846)),
-                      ),
-                    ),
-                    child: const Text('Mostrar todas las paradas'),
-                  ),
-                  const SizedBox(height: 8),
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: rutas.length,
-                      itemBuilder: (context, index) {
-                        final ruta = rutas[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 6),
-                          child: ListTile(
-                            title: Text(ruta.nombre),
-                            subtitle: Text(ruta.sentido),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () async {
-                              selectedId = ruta.idRutaPuma ?? index;
-                              showStops = false;
-                              setModalState(() {});
-                              await _drawRouteLine(
-                                  repository, ruta.idRutaPuma ?? index);
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  if (selectedId != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          showStops = !showStops;
-                          setModalState(() {});
-                          if (showStops) {
-                            await _drawStops(repository, selectedId!);
-                          } else {
-                            await _clearStopSymbols();
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFD97846),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(44),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                ),
+                const SizedBox(height: 12),
+                const SizedBox(height: 8),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: rutas.length,
+                    itemBuilder: (context, index) {
+                      final ruta = rutas[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        child: ListTile(
+                          title: Text(ruta.nombre),
+                          subtitle: Text(ruta.sentido),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            if (!mounted) return;
+                            Navigator.of(rootContext).push(
+                              MaterialPageRoute(
+                                builder: (_) => RouteDetailScreen(
+                                  ruta: ruta,
+                                  repository: repository,
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                        child: Text(showStops
-                            ? 'Ocultar paradas'
-                            : 'Mostrar paradas'),
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF5C3A29),
-                      minimumSize: const Size.fromHeight(44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Color(0xFFD97846)),
-                      ),
-                    ),
-                    child: const Text('Cerrar'),
+                      );
+                    },
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF5C3A29),
+                    minimumSize: const Size.fromHeight(44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: Color(0xFFD97846)),
+                    ),
+                  ),
+                  child: const Text('Cerrar'),
+                ),
+              ],
             ),
-          );
-        });
+          ),
+        );
       },
     );
   }

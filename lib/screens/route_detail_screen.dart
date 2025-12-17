@@ -146,6 +146,78 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     }
   }
 
+  Future<void> _openStopsSheet() async {
+    if (_stops.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay paradas disponibles.')),
+      );
+      return;
+    }
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Paradas',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Color(0xFF5C3A29),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _stops.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, index) {
+                    final stop = _stops[index];
+                    return ListTile(
+                      title: Text(stop.nombre),
+                      trailing: const Icon(Icons.place_outlined),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        _focusStop(stop);
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _focusStop(Parada stop) async {
+    if (mapController == null) return;
+    await mapController!.animateCamera(
+      CameraUpdate.newLatLngZoom(LatLng(stop.lat, stop.lon), 16),
+    );
+  }
+
   LatLngBounds _calculateBounds(List<LatLng> coords) {
     double minLat = 90.0;
     double minLon = 180.0;
@@ -221,6 +293,18 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
                       ),
                     ),
                   ),
+                Positioned(
+                  bottom: 16,
+                  right: 16,
+                  child: FloatingActionButton.extended(
+                    heroTag: 'stopsButton',
+                    onPressed: _openStopsSheet,
+                    backgroundColor: const Color(0xFFD97846),
+                    foregroundColor: Colors.white,
+                    label: const Text('Paradas'),
+                    icon: const Icon(Icons.place),
+                  ),
+                ),
               ],
             ),
     );

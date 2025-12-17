@@ -423,20 +423,51 @@ class _MapScreenState extends State<MapScreen> {
                       onMapCreated: _onMapCreated,
                       onStyleLoadedCallback: _onStyleLoaded,
                       styleString: _stylePath ?? "",
+                      trackCameraPosition: true,
                       myLocationEnabled: true,
                       myLocationTrackingMode: MyLocationTrackingMode.tracking,
                       onMapClick: (p, latLng) {
-                        if (state.selectionMode) {
-                          context
-                              .read<MapBloc>()
-                              .add(MapDestinationSelected(latLng));
-                        }
+                        // Selection mode uses the center crosshair + confirm button,
+                        // so map taps shouldn't auto-select a destination.
                       },
                     ),
                     if (state.selectionMode)
                       Center(
                         child: Icon(Icons.add_location_alt,
                             color: theme.primaryColor, size: 40),
+                      ),
+                    if (state.selectionMode)
+                      Positioned(
+                        bottom: 190,
+                        left: 20,
+                        right: 20,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            final target =
+                                _controller?.cameraPosition?.target ??
+                                    state.cameraPosition;
+                            context
+                                .read<MapBloc>()
+                                .add(MapDestinationSelected(target));
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            elevation: 6,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                          icon: const Icon(Icons.check_circle_rounded),
+                          label: const Text(
+                            'Usar este punto como destino',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
                       ),
                     Positioned(
                       top: 60, // Safe area

@@ -62,6 +62,27 @@ class DataRepository {
         .toList();
   }
 
+  Future<List<Ubicacion>> getPolylineBetweenCoords(
+      int startCoordId, int endCoordId) async {
+    final db = await DatabaseHelper.instance.database;
+    final int a = min(startCoordId, endCoordId);
+    final int b = max(startCoordId, endCoordId);
+
+    final List<Map<String, dynamic>> coordsData = await db.rawQuery('''
+      SELECT * FROM coordenadas
+      WHERE id_coordenada BETWEEN ? AND ?
+      ORDER BY id_coordenada
+    ''', [a, b]);
+
+    return coordsData
+        .map((c) => Ubicacion(
+              nombre: '',
+              latitud: c['latitud'] as double,
+              longitud: c['longitud'] as double,
+            ))
+        .toList();
+  }
+
   Future<List<Parada>> getStopsForRoute(int routeId) async {
     final db = await DatabaseHelper.instance.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''

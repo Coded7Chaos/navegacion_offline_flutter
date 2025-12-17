@@ -11,9 +11,9 @@ import '../blocs/map/map_state.dart';
 import '../blocs/user/user_bloc.dart';
 import '../blocs/user/user_event.dart';
 import '../repositories/data_repository.dart';
-import '../models/ruta.dart';
 import '../models/ubicacion.dart';
 import 'route_detail_screen.dart';
+import 'route_segment_screen.dart';
 import 'route_results_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -73,6 +73,9 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _onMapCreated(MapLibreMapController controller) async {
     _controller = controller;
+    _isStyleLoaded = false;
+    _stopIconLoaded = false;
+    _destinationIconLoaded = false;
     debugPrint("MAP: Map created. Waiting for style to load...");
   }
 
@@ -82,6 +85,12 @@ class _MapScreenState extends State<MapScreen> {
     await _ensureStopIconLoaded();
     await _ensureDestinationIconLoaded();
     await _configureSymbolCollision();
+
+    final mapState = context.read<MapBloc>().state;
+    final destination = mapState.destination;
+    if (destination != null) {
+      await _addDestinationMarker(destination);
+    }
 
     final repository = RepositoryProvider.of<DataRepository>(context);
     final routeId = _pendingRouteId ?? _activeRouteId;
@@ -104,7 +113,9 @@ class _MapScreenState extends State<MapScreen> {
       debugPrint(
           "MAP: Icon '$_stopIconName' loaded. Size: ${list.length} bytes");
     } catch (e) {
-      debugPrint("MAP: Error loading stop icon: $e");
+      // Some platforms throw if the image already exists; treat as loaded.
+      _stopIconLoaded = true;
+      debugPrint("MAP: Error loading stop icon (ignored): $e");
     }
   }
 
@@ -117,6 +128,7 @@ class _MapScreenState extends State<MapScreen> {
       _destinationIconLoaded = true;
       debugPrint("MAP: Icon '$_destinationIconName' loaded.");
     } catch (e) {
+      // If it already exists, that's fine. If it doesn't, we'll fallback later.
       debugPrint("MAP: Error loading destination icon: $e");
     }
   }
@@ -139,12 +151,19 @@ class _MapScreenState extends State<MapScreen> {
     if (_destinationSymbol != null) {
       await _controller!.removeSymbol(_destinationSymbol!);
     }
-    _destinationSymbol = await _controller!.addSymbol(SymbolOptions(
-      geometry: point,
-      iconImage: _destinationIconName,
-      iconSize: 0.18,
-      iconAnchor: "bottom",
-    ));
+    final iconImage =
+        _destinationIconLoaded ? _destinationIconName : "marker-15";
+    try {
+      _destinationSymbol = await _controller!.addSymbol(SymbolOptions(
+        geometry: point,
+        iconImage: iconImage,
+        iconSize: _destinationIconLoaded ? 0.18 : 1.6,
+        iconAnchor: "bottom",
+      ));
+    } catch (e) {
+      debugPrint("MAP: Error adding destination symbol: $e");
+      return;
+    }
     await _controller!.animateCamera(CameraUpdate.newLatLng(point));
   }
 
@@ -290,24 +309,23 @@ class _MapScreenState extends State<MapScreen> {
                   final summary =
                       'Desde mi ubicación hacia destino (${state.destination?.latitude.toStringAsFixed(4)}, ${state.destination?.longitude.toStringAsFixed(4)})';
                   context.read<UserBloc>().add(HistoryAdded(summary));
+                  final origin = state.userLocation;
+                  final destination = state.destination;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => RouteResultsScreen(
                         results: state.routeResults.take(5).toList(),
                         onResultSelected: (selected) {
-                          final tempRuta = Ruta(
-                            idRutaPuma: selected.routeId,
-                            nombre: selected.routeName,
-                            sentido: 'Ida/Vuelta',
-                            estado: true,
-                          );
+                          if (origin == null || destination == null) return;
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => RouteDetailScreen(
-                                ruta: tempRuta,
+                              builder: (_) => RouteSegmentScreen(
+                                result: selected,
                                 repository: repository,
+                                origin: origin,
+                                destination: destination,
                               ),
                             ),
                           );
@@ -470,8 +488,11 @@ class _MapScreenState extends State<MapScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: () =>
-                                  context.read<MapBloc>().add(MapRouteRequested()),
+                              onPressed: state.destination != null
+                                  ? () => context
+                                      .read<MapBloc>()
+                                      .add(MapRouteRequested())
+                                  : null,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: theme.primaryColor,
                                 foregroundColor: Colors.white,

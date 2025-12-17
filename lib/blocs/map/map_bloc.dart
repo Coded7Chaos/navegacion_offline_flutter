@@ -77,7 +77,12 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
   void _onDestinationCleared(
       MapDestinationCleared event, Emitter<MapState> emit) {
-    emit(state.copyWith(destination: null, routeResults: const []));
+    emit(state.copyWith(
+      destination: null,
+      routeResults: const [],
+      selectedRouteId: null,
+      error: null,
+    ));
   }
 
   void _onToggleSelectionMode(
@@ -87,16 +92,33 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
   Future<void> _onRouteRequested(
       MapRouteRequested event, Emitter<MapState> emit) async {
-    if (state.userLocation == null || state.destination == null) return;
+    final origin = state.userLocation;
+    final destination = state.destination;
+    if (origin == null || destination == null) {
+      emit(state.copyWith(
+        loading: false,
+        error: 'Selecciona un destino y activa tu ubicación.',
+      ));
+      return;
+    }
+
     emit(state.copyWith(loading: true, error: null));
     try {
       final results = await repository.findRoutes(
-        state.userLocation!.latitude,
-        state.userLocation!.longitude,
-        state.destination!.latitude,
-        state.destination!.longitude,
+        origin.latitude,
+        origin.longitude,
+        destination.latitude,
+        destination.longitude,
       );
-      emit(state.copyWith(loading: false, routeResults: results));
+      if (results.isEmpty) {
+        emit(state.copyWith(
+          loading: false,
+          routeResults: const [],
+          error: 'No se encontraron rutas para ese destino.',
+        ));
+        return;
+      }
+      emit(state.copyWith(loading: false, routeResults: results, error: null));
     } catch (e) {
       emit(state.copyWith(
           loading: false, error: 'Error buscando rutas: ${e.toString()}'));
@@ -107,8 +129,6 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     emit(state.copyWith(
       selectedRouteId: event.routeId,
       routeSelectionVersion: state.routeSelectionVersion + 1,
-      destination: state.destination,
-      error: state.error,
     ));
   }
 

@@ -29,6 +29,7 @@ class _MapScreenState extends State<MapScreen> {
   bool _styleLoading = true;
   bool _isStyleLoaded = false;
   bool _stopIconLoaded = false;
+  bool _destinationIconLoaded = false;
   Symbol? _destinationSymbol;
   Line? _activeLine;
   final List<Symbol> _stopSymbols = [];
@@ -36,6 +37,7 @@ class _MapScreenState extends State<MapScreen> {
   int? _activeRouteId;
 
   static const String _stopIconName = "parada_bus";
+  static const String _destinationIconName = "destino_icon";
 
   @override
   void initState() {
@@ -78,6 +80,7 @@ class _MapScreenState extends State<MapScreen> {
     if (!mounted) return;
     _isStyleLoaded = true;
     await _ensureStopIconLoaded();
+    await _ensureDestinationIconLoaded();
     await _configureSymbolCollision();
 
     final repository = RepositoryProvider.of<DataRepository>(context);
@@ -105,6 +108,19 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  Future<void> _ensureDestinationIconLoaded() async {
+    if (_controller == null || !_isStyleLoaded || _destinationIconLoaded) return;
+    try {
+      final bytes = await rootBundle.load("assets/images/alfiler.png");
+      final list = bytes.buffer.asUint8List();
+      await _controller!.addImage(_destinationIconName, list);
+      _destinationIconLoaded = true;
+      debugPrint("MAP: Icon '$_destinationIconName' loaded.");
+    } catch (e) {
+      debugPrint("MAP: Error loading destination icon: $e");
+    }
+  }
+
   Future<void> _configureSymbolCollision() async {
     if (_controller == null || !_isStyleLoaded) return;
     try {
@@ -119,15 +135,25 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _addDestinationMarker(LatLng point) async {
     if (_controller == null || !_isStyleLoaded) return;
+    await _ensureDestinationIconLoaded();
     if (_destinationSymbol != null) {
       await _controller!.removeSymbol(_destinationSymbol!);
     }
     _destinationSymbol = await _controller!.addSymbol(SymbolOptions(
       geometry: point,
-      iconImage: "marker-15",
-      iconSize: 1.6,
+      iconImage: _destinationIconName,
+      iconSize: 0.18,
+      iconAnchor: "bottom",
     ));
     await _controller!.animateCamera(CameraUpdate.newLatLng(point));
+  }
+
+  Future<void> _clearDestinationMarker() async {
+    if (_controller == null || !_isStyleLoaded) return;
+    if (_destinationSymbol != null) {
+      await _controller!.removeSymbol(_destinationSymbol!);
+      _destinationSymbol = null;
+    }
   }
 
   Future<void> _drawRouteLine(DataRepository repository, int routeId) async {
@@ -230,6 +256,15 @@ class _MapScreenState extends State<MapScreen> {
               listener: (context, state) async {
                 if (state.destination != null) {
                   await _addDestinationMarker(state.destination!);
+                } else {
+                  _activeRouteId = null;
+                  _pendingRouteId = null;
+                  await _clearDestinationMarker();
+                  await _clearStopSymbols();
+                  if (_activeLine != null) {
+                    await _controller?.removeLine(_activeLine!);
+                    _activeLine = null;
+                  }
                 }
                 if (state.routeSelectionVersion > 0 &&
                     state.selectedRouteId != null) {
@@ -435,12 +470,8 @@ class _MapScreenState extends State<MapScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: (state.destination != null &&
-                                      state.userLocation != null)
-                                  ? () => context
-                                      .read<MapBloc>()
-                                      .add(MapRouteRequested())
-                                  : null,
+                              onPressed: () =>
+                                  context.read<MapBloc>().add(MapRouteRequested()),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: theme.primaryColor,
                                 foregroundColor: Colors.white,

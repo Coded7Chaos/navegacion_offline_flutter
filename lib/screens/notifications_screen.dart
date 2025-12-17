@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/alerts/alerts_bloc.dart';
+import '../blocs/alerts/alerts_event.dart';
 import '../blocs/alerts/alerts_state.dart';
 import '../models/alerta.dart';
 
@@ -9,6 +10,11 @@ class NotificationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Trigger data fetch whenever the screen is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AlertsBloc>().add(AlertsStarted());
+    });
+
     final theme = Theme.of(context);
     
     return Scaffold(
@@ -36,6 +42,32 @@ class NotificationsScreen extends StatelessWidget {
                     style: theme.textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 24),
+                  if (state.errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.errorContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: theme.colorScheme.error),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                state.errorMessage!,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.error,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   Expanded(
                     child: ListView.separated(
                       padding: const EdgeInsets.only(bottom: 100),
@@ -158,10 +190,6 @@ class NotificationsScreen extends StatelessWidget {
                               .toList(),
                         ),
                       ),
-                    _DetailSection(
-                      title: 'Motivo',
-                      child: Text(alerta.motivo),
-                    ),
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: () => Navigator.pop(context),

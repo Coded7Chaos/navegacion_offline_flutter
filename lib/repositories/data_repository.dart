@@ -1,4 +1,7 @@
 import 'dart:math';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../models/notificacion.dart';
 import '../models/parada.dart';
 import '../models/ruta.dart';
 import '../models/ubicacion.dart';
@@ -8,7 +11,39 @@ import '../database/database_helper.dart';
 /// Simple repository that wraps the existing SQLite helper.
 /// Keeps a small in-memory cache so BLoCs can request data without
 /// worrying about listeners or widget lifecycles.
+import 'dart:io';
+
+// ... existing imports ...
+
 class DataRepository {
+  Future<List<Notificacion>> fetchNotificaciones() async {
+    try {
+      final String host = Platform.isAndroid ? '10.0.2.2' : '127.0.0.1';
+      final response = await http.get(Uri.parse('http://$host:8000/api/notificaciones/'));
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = json.decode(utf8.decode(response.bodyBytes));
+        return jsonList.map((json) => Notificacion.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load notifications');
+      }
+    } catch (e) {
+      print('Error fetching notifications: $e');
+      return []; // Return empty list on error to handle offline mode gracefully
+    }
+  }
+
+  Future<String> getRouteName(int routeId) async {
+    return _getRouteName(routeId);
+  }
+
+  Future<String> getStopName(int stopId) async {
+    if (_paradas.isEmpty) await loadParadas();
+    final stop = _paradas.firstWhere((p) => p.idParada == stopId, 
+        orElse: () => Parada(nombre: 'Parada $stopId', lat: 0, lon: 0, idParada: stopId, direccion: '', estado: true));
+    return stop.nombre;
+  }
+
   List<Parada> _paradas = [];
   List<Ruta> _rutas = [];
 

@@ -28,7 +28,7 @@ Future<void> main() async {
           BlocProvider(create: (_) => NavigationCubit()),
           BlocProvider(create: (_) => MapBloc(repository: dataRepository)..add(MapStarted())),
           BlocProvider(create: (_) => HomeBloc(repository: dataRepository)..add(HomeStarted())),
-          BlocProvider(create: (_) => AlertsBloc()..add(AlertsStarted())),
+          BlocProvider(create: (_) => AlertsBloc(repository: dataRepository)..add(AlertsStarted())),
         ],
         child: const MyApp(),
       ),

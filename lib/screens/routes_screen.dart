@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/data_provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../repositories/data_repository.dart';
+import '../models/ruta.dart';
 import 'route_detail_screen.dart';
 
 class RoutesScreen extends StatefulWidget {
@@ -12,32 +13,26 @@ class RoutesScreen extends StatefulWidget {
 
 class _RoutesScreenState extends State<RoutesScreen> {
   @override
-  void initState() {
-    super.initState();
-    // Load routes when screen opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<DataProvider>(context, listen: false).loadRutas();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final repository = RepositoryProvider.of<DataRepository>(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Rutas Puma'),
       ),
-      body: Consumer<DataProvider>(
-        builder: (context, dataProvider, child) {
-          if (dataProvider.rutas.isEmpty) {
-             // If empty, it might be loading or actually empty. 
-             // Since loadRutas is async but doesn't set a loading state flag in this simple provider,
-             // we assume it's loading if empty initially or just show empty message.
-             return const Center(child: Text('Cargando rutas o no disponibles...'));
+      body: FutureBuilder<List<Ruta>>(
+        future: repository.loadRutas(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final rutas = snapshot.data!;
+          if (rutas.isEmpty) {
+            return const Center(child: Text('No hay rutas disponibles'));
           }
           return ListView.builder(
-            itemCount: dataProvider.rutas.length,
+            itemCount: rutas.length,
             itemBuilder: (context, index) {
-              final ruta = dataProvider.rutas[index];
+              final ruta = rutas[index];
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
@@ -49,7 +44,10 @@ class _RoutesScreenState extends State<RoutesScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => RouteDetailScreen(ruta: ruta),
+                        builder: (context) => RouteDetailScreen(
+                          ruta: ruta,
+                          repository: repository,
+                        ),
                       ),
                     );
                   },

@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:maplibre_gl/maplibre_gl.dart';
-import '../providers/data_provider.dart';
-import '../models/parada.dart';
+import '../repositories/data_repository.dart';
 
 class RouteResultsScreen extends StatelessWidget {
   final List<RouteSearchResult> results;

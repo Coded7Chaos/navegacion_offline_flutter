@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../blocs/navigation/navigation_cubit.dart';
+import '../blocs/user/user_bloc.dart';
+import '../blocs/user/user_state.dart';
+import 'registration_screen.dart';
+import 'home_screen.dart';
 import 'map_screen.dart';
-import 'favorites_screen.dart';
-import 'routes_screen.dart';
+import 'notifications_screen.dart';
 import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -13,50 +17,61 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0;
-
-  final List<Widget> _screens = [
-    const MapScreen(),
-    const FavoritesScreen(),
-    const RoutesScreen(),
-    const ProfileScreen(),
+  final List<Widget> _screens = const [
+    HomeScreen(),
+    MapScreen(),
+    NotificationsScreen(),
+    ProfileScreen(),
   ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: _onItemTapped,
-        destinations: const <NavigationDestination>[
-          NavigationDestination(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.star),
-            label: 'Favoritos',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.directions_bus),
-            label: 'Rutas',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person),
-            label: 'Perfil',
-          ),
-        ],
-      ),
+    return BlocBuilder<UserBloc, UserState>(
+      builder: (context, state) {
+        if (state is UserInitial || state is UserLoading) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (state is UserNeedsRegistration) {
+          return const RegistrationScreen();
+        }
+
+        return BlocBuilder<NavigationCubit, int>(
+          builder: (context, index) {
+            return Scaffold(
+              body: IndexedStack(
+                index: index,
+                children: _screens,
+              ),
+              bottomNavigationBar: NavigationBar(
+                selectedIndex: index,
+                onDestinationSelected:
+                    context.read<NavigationCubit>().selectTab,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.home_filled),
+                    label: 'Inicio',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.map),
+                    label: 'Mapa',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.notifications_active),
+                    label: 'Avisos',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.person),
+                    label: 'Cuenta',
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

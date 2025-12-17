@@ -3,18 +3,22 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:provider/provider.dart';
 import '../models/ruta.dart';
 import '../models/parada.dart';
 import '../models/ubicacion.dart';
-import '../providers/data_provider.dart';
+import '../repositories/data_repository.dart';
+import '../blocs/user/user_bloc.dart';
+import '../blocs/user/user_event.dart';
+import '../blocs/user/user_state.dart';
 
 class RouteDetailScreen extends StatefulWidget {
   final Ruta ruta;
+  final DataRepository repository;
 
-  const RouteDetailScreen({super.key, required this.ruta});
+  const RouteDetailScreen({super.key, required this.ruta, required this.repository});
 
   @override
   State<RouteDetailScreen> createState() => _RouteDetailScreenState();
@@ -40,15 +44,10 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
   Future<void> _loadRouteData() async {
     if (widget.ruta.idRutaPuma == null) return;
     
-    final dataProvider = Provider.of<DataProvider>(context, listen: false);
-    
     try {
-      // Fetch Polyline Points
-      final List<Ubicacion> coords = await dataProvider.getRoutePolyline(widget.ruta.idRutaPuma!);
+      final List<Ubicacion> coords = await widget.repository.getRoutePolyline(widget.ruta.idRutaPuma!);
       final List<LatLng> latLngs = coords.map((c) => LatLng(c.latitud, c.longitud)).toList();
-      
-      // Fetch Stops
-      final List<Parada> stops = await dataProvider.getStopsForRoute(widget.ruta.idRutaPuma!);
+      final List<Parada> stops = await widget.repository.getStopsForRoute(widget.ruta.idRutaPuma!);
 
       if (mounted) {
         setState(() {
@@ -171,6 +170,26 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.ruta.nombre),
+        actions: [
+          BlocBuilder<UserBloc, UserState>(
+            builder: (context, state) {
+              final isFav = state is UserLoaded &&
+                  widget.ruta.idRutaPuma != null &&
+                  state.favoritos.contains(widget.ruta.idRutaPuma);
+              return IconButton(
+                icon: Icon(
+                  isFav ? Icons.favorite : Icons.favorite_border,
+                  color: isFav ? Colors.red : null,
+                ),
+                onPressed: widget.ruta.idRutaPuma == null
+                    ? null
+                    : () => context
+                        .read<UserBloc>()
+                        .add(FavoriteToggled(widget.ruta.idRutaPuma!)),
+              );
+            },
+          ),
+        ],
       ),
       body: _isLoadingMap
           ? const Center(child: CircularProgressIndicator())

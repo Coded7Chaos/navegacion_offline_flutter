@@ -1,16 +1,20 @@
-import 'dart:io';
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
-import 'package:provider/provider.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import '../providers/map_provider.dart';
-import '../providers/data_provider.dart';
+import '../blocs/map/map_bloc.dart';
+import '../blocs/map/map_event.dart';
+import '../blocs/map/map_state.dart';
+import '../blocs/user/user_bloc.dart';
+import '../blocs/user/user_event.dart';
+import '../repositories/data_repository.dart';
 import '../models/ruta.dart';
-import 'route_results_screen.dart';
+import '../models/ubicacion.dart';
 import 'route_detail_screen.dart';
+import 'route_results_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -20,44 +24,20 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  MaplibreMapController? mapController;
+  MaplibreMapController? _controller;
   String? _stylePath;
-  bool _isLoading = true;
-  bool _isOnline = false;
-  StreamSubscription? _connectivitySubscription;
+  bool _styleLoading = true;
+  Symbol? _destinationSymbol;
+  Line? _activeLine;
+  final List<Symbol> _stopSymbols = [];
 
   @override
   void initState() {
     super.initState();
-    _prepararArchivosOffline();
-    _initConnectivity();
-    
-    // Load paradas for search
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<DataProvider>(context, listen: false).loadParadas();
-      Provider.of<MapProvider>(context, listen: false).determinePosition();
-    });
+    _prepareOfflineStyle();
   }
 
-  @override
-  void dispose() {
-    _connectivitySubscription?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _initConnectivity() async {
-    final result = await Connectivity().checkConnectivity();
-    _updateConnectionStatus(result);
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(_updateConnectionStatus);
-  }
-
-  void _updateConnectionStatus(ConnectivityResult result) {
-    setState(() {
-      _isOnline = result != ConnectivityResult.none;
-    });
-  }
-
-  Future<void> _prepararArchivosOffline() async {
+  Future<void> _prepareOfflineStyle() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final mapsDir = Directory('${directory.path}/maps');
@@ -71,233 +51,513 @@ class _MapScreenState extends State<MapScreen> {
 
       final styleString = await rootBundle.loadString('assets/maps/style.json');
       final finalStyle = styleString.replaceFirst('{path_to_mbtiles}', mbtilesPath);
-
       final styleFile = File('${mapsDir.path}/style_final.json');
       await styleFile.writeAsString(finalStyle);
 
       setState(() {
         _stylePath = styleFile.path;
-        _isLoading = false;
+        _styleLoading = false;
       });
     } catch (e) {
-      print("Error preparando mapas: $e");
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _styleLoading = false);
     }
   }
 
   void _onMapCreated(MaplibreMapController controller) {
-    mapController = controller;
+    _controller = controller;
+  }
+
+  Future<void> _addDestinationMarker(LatLng point) async {
+    if (_controller == null) return;
+    if (_destinationSymbol != null) {
+      await _controller!.removeSymbol(_destinationSymbol!);
+    }
+    _destinationSymbol = await _controller!.addSymbol(SymbolOptions(
+      geometry: point,
+      iconImage: "marker-15",
+      iconSize: 1.6,
+    ));
+    await _controller!.animateCamera(CameraUpdate.newLatLng(point));
+  }
+
+  Future<void> _drawRouteLine(DataRepository repository, int routeId) async {
+    if (_controller == null) return;
+    if (_activeLine != null) {
+      await _controller!.removeLine(_activeLine!);
+      _activeLine = null;
+    }
+    await _clearStopSymbols();
+    final coords = await repository.getRoutePolyline(routeId);
+    final geometry =
+        coords.map((u) => LatLng(u.latitud, u.longitud)).toList();
+    if (geometry.isNotEmpty) {
+      _activeLine = await _controller!.addLine(LineOptions(
+        geometry: geometry,
+        lineColor: "#D97846",
+        lineWidth: 5.0,
+      ));
+      await _controller!.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          _boundsFrom(geometry),
+          left: 40,
+          top: 60,
+          right: 40,
+          bottom: 160,
+        ),
+      );
+    }
+  }
+
+  LatLngBounds _boundsFrom(List<LatLng> coords) {
+    double minLat = coords.first.latitude;
+    double maxLat = coords.first.latitude;
+    double minLon = coords.first.longitude;
+    double maxLon = coords.first.longitude;
+    for (final c in coords) {
+      minLat = minLat > c.latitude ? c.latitude : minLat;
+      maxLat = maxLat < c.latitude ? c.latitude : maxLat;
+      minLon = minLon > c.longitude ? c.longitude : minLon;
+      maxLon = maxLon < c.longitude ? c.longitude : maxLon;
+    }
+    return LatLngBounds(
+      southwest: LatLng(minLat, minLon),
+      northeast: LatLng(maxLat, maxLon),
+    );
+  }
+
+  Future<void> _clearStopSymbols() async {
+    if (_controller == null) return;
+    if (_stopSymbols.isEmpty) return;
+
+    // Work on a snapshot to avoid concurrent modification if this method is
+    // triggered while another call is still awaiting removes.
+    final symbols = List<Symbol>.from(_stopSymbols);
+    _stopSymbols.clear();
+
+    for (final s in symbols) {
+      await _controller!.removeSymbol(s);
+    }
+  }
+
+  Future<void> _drawStops(DataRepository repository, int routeId) async {
+    if (_controller == null) return;
+    await _clearStopSymbols();
+    final stops = await repository.getStopsForRoute(routeId);
+    for (final stop in stops) {
+      final symbol = await _controller!.addSymbol(SymbolOptions(
+        geometry: LatLng(stop.lat, stop.lon),
+        iconImage: "marker-15",
+        iconSize: 1.2,
+        textField: stop.nombre,
+        textOffset: const Offset(0, 1.4),
+        textSize: 12,
+      ));
+      _stopSymbols.add(symbol);
+    }
+  }
+
+  Future<void> _showAllStops(DataRepository repository) async {
+    if (_controller == null) return;
+    await _clearStopSymbols();
+    final stops = await repository.loadParadas();
+    for (final stop in stops) {
+      final symbol = await _controller!.addSymbol(SymbolOptions(
+        geometry: LatLng(stop.lat, stop.lon),
+        iconImage: "marker-15",
+        iconSize: 1.2,
+        textField: stop.nombre,
+        textOffset: const Offset(0, 1.4),
+        textSize: 12,
+      ));
+      _stopSymbols.add(symbol);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final mapProvider = Provider.of<MapProvider>(context);
-    final dataProvider = Provider.of<DataProvider>(context);
-
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
+    final repository = RepositoryProvider.of<DataRepository>(context);
     return Scaffold(
-      body: Stack(
-        children: [
-          // 1. MAP LAYER
-          MaplibreMap(
-            initialCameraPosition: mapProvider.cameraPosition,
-            styleString: _stylePath ?? "",
-            onMapCreated: _onMapCreated,
-            onCameraIdle: () {
-               if (mapController != null && mapProvider.isSelectingDestination) {
-                 // logic to update destination if dragging map (optional)
-               }
-            },
-            onMapClick: (point, latLng) {
-               if (mapProvider.isSelectingDestination) {
-                 mapProvider.setDestination(latLng);
-                 mapProvider.setIsSelectingDestination(false);
-                 // Add symbol logic here (would require controller.addSymbol)
-                 mapController?.addSymbol(SymbolOptions(
-                   geometry: latLng,
-                   iconImage: "marker-15", // Ensure this icon exists in style or assets
-                   iconSize: 1.5,
-                 ));
-               }
-            },
-             myLocationEnabled: true,
-             myLocationRenderMode: MyLocationRenderMode.GPS,
-             myLocationTrackingMode: MyLocationTrackingMode.Tracking,
-          ),
-
-          // 2. CROSSHAIR (Center)
-          const Center(
-            child: Icon(Icons.add, size: 30, color: Colors.black54),
-          ),
-
-          // 3. SEARCH BAR (Top)
-          Positioned(
-            top: 40,
-            left: 10,
-            right: 10,
-            child: Column(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
-                  ),
-                  child: TextField(
-                    onChanged: (value) => mapProvider.updateSearchValue(value, dataProvider.paradas),
-                    decoration: InputDecoration(
-                      hintText: 'Buscar parada...',
-                      border: InputBorder.none,
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.my_location),
-                        onPressed: () {
-                          mapProvider.determinePosition();
-                           if (mapProvider.originPoint != null && mapController != null) {
-                              mapController!.animateCamera(
-                                CameraUpdate.newLatLngZoom(mapProvider.originPoint!, 15)
-                              );
-                           }
+      backgroundColor: const Color(0xFFFFF8F3),
+      body: _styleLoading
+          ? const Center(child: CircularProgressIndicator())
+          : BlocConsumer<MapBloc, MapState>(
+              listenWhen: (prev, curr) =>
+                  prev.destination != curr.destination ||
+                  prev.routeResults != curr.routeResults ||
+                  prev.error != curr.error,
+              listener: (context, state) async {
+                if (state.destination != null) {
+                  await _addDestinationMarker(state.destination!);
+                }
+                if (state.error != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(state.error!)),
+                  );
+                }
+                if (state.routeResults.isNotEmpty) {
+                  final summary =
+                      'Desde mi ubicación hacia destino (${state.destination?.latitude.toStringAsFixed(4)}, ${state.destination?.longitude.toStringAsFixed(4)})';
+                  context.read<UserBloc>().add(HistoryAdded(summary));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RouteResultsScreen(
+                        results: state.routeResults.take(5).toList(),
+                        onResultSelected: (selected) {
+                          final tempRuta = Ruta(
+                            idRutaPuma: selected.routeId,
+                            nombre: selected.routeName,
+                            sentido: 'Ida/Vuelta',
+                            estado: true,
+                          );
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RouteDetailScreen(
+                                ruta: tempRuta,
+                                repository: repository,
+                              ),
+                            ),
+                          );
                         },
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    ),
+                  ).then((_) {
+                    context.read<MapBloc>().add(MapClearResults());
+                  });
+                }
+              },
+              builder: (context, state) {
+                return Stack(
+                  children: [
+                    MaplibreMap(
+                      initialCameraPosition: CameraPosition(
+                          target: state.cameraPosition, zoom: 13),
+                      onMapCreated: _onMapCreated,
+                      styleString: _stylePath ?? "",
+                      myLocationEnabled: true,
+                      myLocationTrackingMode: MyLocationTrackingMode.Tracking,
+                      onMapClick: (p, latLng) {
+                        if (state.selectionMode) {
+                          context
+                              .read<MapBloc>()
+                              .add(MapDestinationSelected(latLng));
+                        }
+                      },
+                    ),
+                    if (state.selectionMode)
+                      const Center(
+                        child: Icon(Icons.add_location_alt,
+                            color: Colors.black54, size: 32),
+                      ),
+                    Positioned(
+                      top: 40,
+                      left: 16,
+                      right: 16,
+                      child: Column(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    onChanged: (v) => context
+                                        .read<MapBloc>()
+                                        .add(MapSearchChanged(v)),
+                                    decoration: const InputDecoration(
+                                      hintText: 'Buscar ubicación o parada',
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 14),
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.my_location,
+                                    color: state.selectionMode
+                                        ? const Color(0xFFD97846)
+                                        : const Color(0xFF5C3A29),
+                                  ),
+                                  onPressed: () => context
+                                      .read<MapBloc>()
+                                      .add(MapToggleSelectionMode()),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (state.searchResults.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(top: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              constraints: const BoxConstraints(maxHeight: 200),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: state.searchResults.length,
+                                itemBuilder: (context, index) {
+                                  final Ubicacion res =
+                                      state.searchResults[index];
+                                  return ListTile(
+                                    title: Text(res.nombre),
+                                    onTap: () {
+                                      final point =
+                                          LatLng(res.latitud, res.longitud);
+                                      context
+                                          .read<MapBloc>()
+                                          .add(MapDestinationSelected(point));
+                                      _addDestinationMarker(point);
+                                      _controller?.animateCamera(
+                                          CameraUpdate.newLatLngZoom(
+                                              point, 15));
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 120,
+                      left: 16,
+                      right: 16,
+                      child: Row(
+                        children: [
+                          _CircleButton(
+                            icon: Icons.navigation,
+                            onPressed: () async {
+                              context
+                                  .read<MapBloc>()
+                                  .add(MapUserLocationRequested());
+                              final user = state.userLocation;
+                              if (user != null) {
+                                await _controller?.animateCamera(
+                                    CameraUpdate.newLatLngZoom(user, 15));
+                              }
+                            },
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: (state.destination != null &&
+                                      state.userLocation != null)
+                                  ? () => context
+                                      .read<MapBloc>()
+                                      .add(MapRouteRequested())
+                                  : null,
+                              style: ElevatedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                backgroundColor: const Color(0xFFD97846),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: const Text(
+                                'Buscar ruta más corta',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          _CircleButton(
+                            icon: Icons.list,
+                            onPressed: () => _openRoutesSheet(repository),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 70,
+                      right: 16,
+                      child: state.destination != null
+                          ? FloatingActionButton.small(
+                              heroTag: 'clearDest',
+                              backgroundColor: Colors.white,
+                              onPressed: () => context
+                                  .read<MapBloc>()
+                                  .add(MapDestinationCleared()),
+                              child: const Icon(Icons.close,
+                                  color: Color(0xFF5C3A29)),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                );
+              },
+            ),
+    );
+  }
+
+  Future<void> _openRoutesSheet(DataRepository repository) async {
+    final rutas = await repository.loadRutas();
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        int? selectedId;
+        bool showStops = false;
+        return StatefulBuilder(builder: (context, setModalState) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                ),
-                if (mapProvider.searchResults.isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.only(top: 5),
-                    color: Colors.white,
-                    constraints: const BoxConstraints(maxHeight: 200),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Rutas disponibles',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Color(0xFF5C3A29),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await _showAllStops(repository);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF5C3A29),
+                      minimumSize: const Size.fromHeight(44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Color(0xFFD97846)),
+                      ),
+                    ),
+                    child: const Text('Mostrar todas las paradas'),
+                  ),
+                  const SizedBox(height: 8),
+                  Flexible(
                     child: ListView.builder(
                       shrinkWrap: true,
-                      itemCount: mapProvider.searchResults.length,
-                      itemBuilder: (ctx, i) {
-                        final res = mapProvider.searchResults[i];
-                        return ListTile(
-                          title: Text(res.nombre),
-                          onTap: () {
-                             final latLng = LatLng(res.latitud, res.longitud);
-                             mapProvider.setDestination(latLng);
-                             mapProvider.updateSearchValue('', []); // clear search
-                             mapController?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 15));
-                              mapController?.addSymbol(SymbolOptions(
-                               geometry: latLng,
-                               iconImage: "marker-15",
-                               iconSize: 1.5,
-                             ));
-                          },
+                      itemCount: rutas.length,
+                      itemBuilder: (context, index) {
+                        final ruta = rutas[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          child: ListTile(
+                            title: Text(ruta.nombre),
+                            subtitle: Text(ruta.sentido),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () async {
+                              selectedId = ruta.idRutaPuma ?? index;
+                              showStops = false;
+                              setModalState(() {});
+                              await _drawRouteLine(
+                                  repository, ruta.idRutaPuma ?? index);
+                            },
+                          ),
                         );
                       },
                     ),
-                  )
-              ],
-            ),
-          ),
-
-          // 4. CONNECTIVITY STATUS (Bottom Right)
-          Positioned(
-            bottom: 100,
-            right: 16,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _isOnline ? Colors.green : Colors.red,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _isOnline ? 'Online' : 'Offline',
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-          ),
-
-          // 5. BOTTOM ACTION (Search Route)
-          if (mapProvider.originPoint != null && mapProvider.destinationPoint != null)
-            Positioned(
-              bottom: 20,
-              left: 20,
-              right: 20,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                 decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                     boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
                   ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => mapProvider.setDestination(null),
-                    ),
-                    Expanded(
+                  if (selectedId != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
                       child: ElevatedButton(
                         onPressed: () async {
-                          // Show Loading
-                          showDialog(
-                            context: context, 
-                            barrierDismissible: false,
-                            builder: (_) => const Center(child: CircularProgressIndicator())
-                          );
-
-                          try {
-                            final results = await dataProvider.findRoutes(
-                              mapProvider.originPoint!.latitude,
-                              mapProvider.originPoint!.longitude,
-                              mapProvider.destinationPoint!.latitude,
-                              mapProvider.destinationPoint!.longitude,
-                            );
-
-                            Navigator.pop(context); // Hide loading
-
-                            if (results.isEmpty) {
-                               ScaffoldMessenger.of(context).showSnackBar(
-                                 const SnackBar(content: Text("No se encontraron rutas cercanas directas."))
-                               );
-                            } else {
-                              // Navigate to Results
-                              Navigator.push(context, MaterialPageRoute(
-                                builder: (_) => RouteResultsScreen(
-                                  results: results,
-                                  onResultSelected: (selectedRoute) {
-                                    // Create a temporary Ruta object to reuse RouteDetailScreen
-                                    final tempRuta = Ruta(
-                                      idRutaPuma: selectedRoute.routeId,
-                                      nombre: selectedRoute.routeName,
-                                      sentido: "Ida/Vuelta", // You might want to fetch this too
-                                      estado: true
-                                    );
-                                    Navigator.push(context, MaterialPageRoute(
-                                      builder: (_) => RouteDetailScreen(ruta: tempRuta)
-                                    ));
-                                  },
-                                )
-                              ));
-                            }
-                          } catch (e) {
-                             Navigator.pop(context); // Hide loading
-                             print("Error finding routes: $e");
-                             ScaffoldMessenger.of(context).showSnackBar(
-                                 SnackBar(content: Text("Error buscando rutas: $e"))
-                               );
+                          showStops = !showStops;
+                          setModalState(() {});
+                          if (showStops) {
+                            await _drawStops(repository, selectedId!);
+                          } else {
+                            await _clearStopSymbols();
                           }
                         },
-                        child: const Text("Buscar ruta"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFD97846),
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(44),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(showStops
+                            ? 'Ocultar paradas'
+                            : 'Mostrar paradas'),
                       ),
                     ),
-                  ],
-                ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF5C3A29),
+                      minimumSize: const Size.fromHeight(44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Color(0xFFD97846)),
+                      ),
+                    ),
+                    child: const Text('Cerrar'),
+                  ),
+                ],
               ),
             ),
-        ],
+          );
+        });
+      },
+    );
+  }
+}
+
+class _CircleButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _CircleButton({required this.icon, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 6,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Icon(icon, color: const Color(0xFF5C3A29)),
+        ),
       ),
     );
   }
